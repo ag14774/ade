@@ -24,6 +24,7 @@ Helix, OpenCode and tuicr; each is an adapter you can swap. Made to fork.
 | [`packages/opencode-ade-status`](packages/opencode-ade-status)       | OpenCode plugin: done and failed statuses for the tabs, and OpenCode's sounds once, in the right tab                                |
 | [`packages/opencode-ade-worktrees`](packages/opencode-ade-worktrees) | OpenCode plugin: OpenCode's own worktrees through ade-kit                                                                           |
 | `starter/`                                                           | a setup to start from: Zellij keys and layout, Helix keys, the ADE config, the `wt*` shell functions and `ocreload`, `opencode-pane`, `link.sh` |
+| [`install.sh`](install.sh) | links `ade` and the OpenCode plugins into place |
 | `tests/`                                                             | the zsh tests, and the sandbox the live ones run in                                                                                 |
 
 ## Requirements
@@ -45,7 +46,8 @@ git clone https://github.com/ag14774/ade ~/.local/share/ade
 [starter](starter)'s config into place (a config you already have stays) and
 says what is left to do: a line in `~/.zshrc`, `opencode service restart`, and
 granting the top bar its permission once. With a setup of your own,
-`starter/link.sh --core` links only `ade` and the plugins.
+[`install.sh`](install.sh) links only `ade` and the plugins (and keeps your
+own config, so a fork's or a dotfiles' installer can call it).
 
 ## Make it yours
 
