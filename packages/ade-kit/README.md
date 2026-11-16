@@ -53,9 +53,16 @@ Set `ADE_LOG=FILE` to append each command `ade` runs to a file, and
   fail if it already has a tab). Outside a multiplexer, `-t` goes there
   instead, `-b` stays, and `-p` fails.
 - `ade worktree rm [-f] NAME`: removes the worktree of a branch, folder name or
-  path (`-f`: even with uncommitted changes) and closes its tabs, except yours
-  and except when an agent runs it. Then the agent forgets it, as with
-  `ade forget-gone` (a failure there is only a warning).
+  path (`-f`: even with uncommitted changes), then moves the agent's
+  conversations that were there (subagents' and archived ones too) to the
+  default branch's worktree, or to the project folder when that is the one
+  removed: a conversation in a folder that is gone fails. It closes the
+  worktree's tabs, except yours and except when an agent runs it, and the
+  agent forgets the worktree, as with `ade forget-gone`. While one of the
+  worktree's conversations is running it refuses, `-f` or not, and names it:
+  a running conversation moves only at the end of its current step, too late.
+  Move it out first (an agent: `session_move`), then remove the worktree in a
+  later step. When the agent can't be asked, that is only a warning.
 - `ade worktree prune [-y] [-n] [-m]`: removes the worktrees whose remote
   branch was deleted (`-m`: also those merged through a GitHub PR, matched by
   the branch's exact last commit), never the one you are in or the default
