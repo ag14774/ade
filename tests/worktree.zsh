@@ -82,7 +82,7 @@ case $cmd in
     printf '%s\t%s\n' $tab $name >> $st/tabs
     printf '%s\t%s\tmain\t%s\t-\n' $(next_id) $tab $cwd >> $st/panes
     [[ -n ${ZJ_NO_AGENT:-} ]] \
-      || printf '%s\t%s\topencode\t%s\tzsh -i -c opencode\n' $(next_id) $tab $cwd >> $st/panes
+      || printf '%s\t%s\topencode\t%s\tade agent\n' $(next_id) $tab $cwd >> $st/panes
     (( focus )) && print $tab > $st/focus
     print $tab
     ;;

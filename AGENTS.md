@@ -17,13 +17,12 @@ an editor, a coding agent and a reviewer wired together.
     interfaces (`src/types.ts`); the public surface (`src/index.ts`).
   - `opencode-ade`, `opencode-ade-status`, `opencode-ade-worktrees`: the
     OpenCode plugins, linked into `~/.config/opencode/plugins/`.
-- `starter/`: a setup to copy and own: Zellij keys and layout, Helix keys,
-  the ADE config, the `wt*` shell functions (short names for
-  `ade worktree`) and `ocreload`, `opencode-pane`, and `link.sh`, which
-  links it into place. Its files explain each block for a newcomer, the one
-  exception to sparse comments. `tests/keys_smoke.zsh` drives it. It is an
-  example: nothing outside it may depend on its files (a setup of its own
-  copies them).
+- `starter/`: a setup to copy and own: Zellij keys, layout and restore hook,
+  Helix keys, the ADE config, the `wt*` shell functions (short names for
+  `ade worktree`, in POSIX shell), and `link.sh`, which links it into place.
+  Its files explain each block for a newcomer, the one exception to sparse
+  comments. The tests run on it. It is an example: the packages and
+  `install.sh` never depend on its files, and a setup of its own copies them.
 - `install.sh`: links `ade` and the plugins into place; what other
   installers (a fork's, a dotfiles') call.
 - `tests/`: zsh tests; `tests/lib/zellij-sandbox.zsh` for the live ones.
@@ -56,6 +55,9 @@ Keep a fork small: most changes need no edit to the packages.
 - Plugins import only `"ade-kit"` (its `src/index.ts`), never its other
   files. If a plugin needs more, export it from `index.ts`.
 - An adapter is `export default (kit) => adapter`, with `api: 1`.
+- No code for one shell or one setup: what ade does is TypeScript, reached
+  through the `ade` command. The starter's shell file is POSIX sh, and
+  nothing here assumes a user's own files (rc files, secrets, session names).
 - Comments are sparse and say what the code does and why, never its history
   ("used to", "no longer", "since the move to"). History goes in commit
   messages and CHANGELOG.md.
@@ -72,7 +74,7 @@ npm test         # every test that needs no Zellij session, service or model
 ```
 
 `.editorconfig` covers the other files. After a change, also run the live
-test the README's "Tests" table names for it. A change to user-visible
+test the README's "Development" table names for it. A change to user-visible
 behaviour gets an entry in CHANGELOG.md; the README and comments describe only
 how things are now.
 
@@ -89,6 +91,8 @@ the user's own session or service.
   the sandbox, run anything that may ask Zellij (`ade where`,
   `ade worktree ls --json`) with
   `env -u ZELLIJ -u ZELLIJ_SESSION_NAME -u ZELLIJ_PANE_ID`.
-- Never use the session name `main`: it is the user's session.
+- Never attach to or name a session the user may have (the starter's is
+  `ade`; other setups use their own, such as `main`). A test names its
+  session after itself and its process (`keys-smoke-$$`).
 - Never start, stop or restart the user's OpenCode service
   (`opencode service …`); tests use a private one on its own port.

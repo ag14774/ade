@@ -7,28 +7,37 @@ only how things are now; this file is where the changes live. Newest first.
 
 The packages moved here from
 [ag14774/dotfiles](https://github.com/ag14774/dotfiles), with their history
-and tests. Nothing changes in how they work.
+and tests, and the agent panes no longer need a script of their own.
 
-**If you used them from the dotfiles:** clone this repository, run
-`npm install --omit=dev --omit=optional --omit=peer` in it, and point the
-`ade` link and the three plugin links in `~/.config/opencode/plugins/` at
-its `packages/` (README, "Install"). Then `opencode service restart`.
+**After pulling, in this order:**
 
-- `install.sh` links `ade` and the OpenCode plugins into place (npm links
-  the packages first, downloading nothing).
-- `starter/`: a setup to copy and own, and `starter/link.sh`, which runs
-  `install.sh` and links the starter's config into place. Zellij's keys
-  (`Alt-t`, `Alt-y`, `Alt-v`, tab mode `g`/`G`) as additions to its
-  defaults, the tab layout, the picker and the restore hook; Helix's `+ a`
-  and `Ctrl-r`; the ADE config; `cli.json`; the `wt*` functions and
-  `ocreload` (running `ade` from `PATH`); `opencode-pane` (in your shell if
-  it is zsh or bash).
+1. Rerun `./install.sh` in your clone (`starter/link.sh` with the starter),
+   or, coming from the dotfiles, their `install.sh`, which runs it. It links
+   `ade` and the three plugins from this clone.
+2. If you copied the starter's files: drop `"command": ["opencode-pane"]`
+   from your ADE config and `~/.local/bin/opencode-pane`, use the layout's
+   new agent pane (`ade agent`) and restore hook, and source
+   `starter/shell/ade.sh` instead of `ade.zsh` (rename `ocreload` calls to
+   `ade restart-agent --reload`).
+3. `opencode service restart` (interrupts running conversations), then
+   `ade restart-agent` in each tab, so its agent pane runs `ade agent`. A
+   saved session's panes still name `opencode-pane`: until each tab has been
+   restarted, a restored agent pane closes; `ade restart-agent` in that tab
+   brings it back.
+
+**What changes for you:**
+
+- `ade agent [--session ID] [--prompt TEXT]` runs the agent panes ade and the
+  starter's layout start. It runs again as `ade agent --resume`, which is what
+  Zellij saves: a restored pane carries on with its folder's latest
+  conversation and never gets its task again. It replaces the starter's
+  `opencode-pane` script; the ADE config needs no `opencode.command` for it.
+- `ade restart-agent --reload`: the agent first forgets the folders that are
+  gone and reloads its configuration, as the starter's `ocreload` did.
 - `ade forget-gone`: the agent forgets the folders that no longer exist.
-  OpenCode's service failed its reload on them, so `ocreload` stopped before
-  restarting the agent. `ade worktree rm`, `prune` and OpenCode's own
-  worktree removals now do it too, and `ocreload` runs it first. After
-  pulling: `opencode service restart`. Agent adapters of your own can have a
-  `forgetGone`. (Ported from the dotfiles, #2.)
+  OpenCode's service failed its reload on them. `ade worktree rm`, `prune`
+  and OpenCode's own worktree removals do it too. (From the dotfiles,
+  [ag14774/dotfiles#2](https://github.com/ag14774/dotfiles/pull/2).)
 - Removing a worktree no longer strands its conversations in a folder that
   is gone, where every prompt failed. `ade worktree rm`, `prune` and
   OpenCode's own removals (the agents' `worktree_remove`) move the idle ones
@@ -37,16 +46,24 @@ its `packages/` (README, "Install"). Then `opencode service restart`.
   naming it: a running conversation moves only at the end of its step, after
   the folder is gone. An agent removing its own worktree moves out first
   (`session_move`), then removes it in a later step; the ADE plugin's
-  instructions say so. After pulling: `opencode service restart`, and
-  restart the OpenCode panes. Agent adapters of your own can have
+  instructions say so.
+- Agent adapters of your own can have `resume`, `reload`, `forgetGone`,
   `conversationsIn` and `moveConversations`.
-- `ocreload` (restart the tab's agent) is in the starter's `shell/ade.zsh`,
-  with the `wt*` functions.
+- `starter/`: a setup to copy and own, with `starter/link.sh`, which runs
+  `install.sh` and links the starter's config into place: Zellij's keys
+  (`Alt-t`, `Alt-y`, `Alt-v`, tab mode `g`/`G`) as additions to its defaults,
+  the tab layout, the picker and the restore hook; Helix's `+ a` and
+  `Ctrl-r`; the ADE config; `cli.json`; and the `wt*` functions in POSIX
+  shell (`shell/ade.sh`, for bash and zsh).
+- `install.sh` links `ade` and the plugins (npm links the packages first,
+  downloading nothing), and stops with a message for a Node older than 24 or
+  a missing npm. Node 24 or newer is required.
 - The test sandbox takes the config under test from `SANDBOX_CONFIG`,
   `SANDBOX_BIN` and `SANDBOX_LAYOUT` (default: the starter), and puts this
-  checkout's `ade` on `PATH`.
+  checkout's `ade` on `PATH`. `tests/zellij_restore_smoke.zsh` moved here from
+  the dotfiles.
 
-## 2026-11-16 (in the dotfiles, `cbf95bd`)
+## 2026-11-16: a review (in the dotfiles, [`cbf95bd`](https://github.com/ag14774/dotfiles/commit/cbf95bdd4207b08d3616a9de13ed4d64618af81a))
 
 A review: clearer packages, fewer leftovers, the same daily flow.
 
