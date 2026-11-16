@@ -1,6 +1,6 @@
 #!/usr/bin/env zsh
-# Live check of the keys that tie the panes together, with this checkout's
-# scripts, against the installed Zellij, Helix, Yazi and tuicr:
+# Live check of the keys that tie the panes together, with the starter's
+# config and scripts, against the installed Zellij, Helix, Yazi and tuicr:
 #   - Alt-y: the file picked in Yazi opens in the tab's editor pane;
 #   - Helix `+ a`: the selection goes to the tab's OpenCode pane;
 #   - Alt-v: a tuicr review of the branch (commits and uncommitted changes);
@@ -14,8 +14,9 @@
 # (tests/lib/zellij-sandbox.zsh): its own Zellij server, HOME and config, so it
 # never reaches your session and leaves nothing in your Zellij cache or tuicr's
 # records. A pane running `cat` stands in for OpenCode, so no model is called.
-# The sandbox's config is this checkout's (Alt-v and Helix's `+ a` calling this
-# checkout's ade), with the Yazi plugins and flavor you installed.
+# The config under test is the starter's (or $SANDBOX_CONFIG's), and `ade` is
+# this checkout's; with a Yazi config, the Yazi plugins and flavors you
+# installed come along.
 
 set -u
 
@@ -61,23 +62,25 @@ keys_to() { zj write-chars --pane-id "terminal_$(pane "$1")" "$2"; sleep "${3:-1
 enter_in() { zj write --pane-id "terminal_$(pane "$1")" 13; sleep "${2:-1}"; }
 press() { print -rn -- "$1" >> "$TMP/keys"; } # through the client: Zellij's own keys
 
-# This checkout's Zellij config, its keys pointing at this checkout's scripts
-# (Alt-t's dev layout must exist for the config to load).
+# The Zellij config under test, its keys pointing at its own scripts (Alt-t's
+# dev layout must exist for the config to load). Alt-v and Helix's `+ a` run
+# ~/.local/bin/ade: this checkout's, in the sandbox.
 sandbox_layout
-sed -e "s|\$HOME/.config/zellij/|$ROOT/config/.config/zellij/|g" -e "s|\$HOME/.local/bin/ade |$ROOT/config/.local/bin/ade |g" \
-  "$ROOT/config/.config/zellij/config.kdl" > "$TMP/zj/config.kdl"
-grep -q "$ROOT/config/.local/bin/ade review" "$TMP/zj/config.kdl" || fail "could not point Alt-v at this checkout"
-grep -q "$ROOT/config/.config/zellij/yazi-picker.sh" "$TMP/zj/config.kdl" || fail "could not point Alt-y at this checkout"
+zconfig=$SANDBOX_CONFIG/zellij
+sed "s|\$HOME/.config/zellij/|$zconfig/|g" "$zconfig/config.kdl" > "$TMP/zj/config.kdl"
+grep -q "$zconfig/yazi-picker.sh" "$TMP/zj/config.kdl" || fail "could not point Alt-y at $zconfig"
+sandbox_ade=$HOME/.local/bin/ade
+[[ ${sandbox_ade:A} == $ROOT/packages/ade-kit/src/cli.ts ]] || fail "the sandbox's ade is not this checkout's"
 
-# This checkout's config, with Helix's `+ a` calling this checkout's ade, and
-# the Yazi packages you installed (`ya pkg`).
-sandbox_config helix yazi tuicr fzf git ade
-for d in "$SANDBOX_REAL_HOME"/.config/yazi/{plugins,flavors}/*.yazi(N/); do
-  mkdir -p "$XDG_CONFIG_HOME/yazi/${d:h:t}"
-  [[ -e $XDG_CONFIG_HOME/yazi/${d:h:t}/${d:t} ]] || cp -R "$d" "$XDG_CONFIG_HOME/yazi/${d:h:t}/"
+for c in helix yazi tuicr fzf git ade; do
+  [[ -d $SANDBOX_CONFIG/$c ]] && sandbox_config $c
 done
-sed -i.orig "s|\$HOME/.local/bin/ade |$ROOT/config/.local/bin/ade |g" "$XDG_CONFIG_HOME/helix/config.toml"
-grep -q "$ROOT/config/.local/bin/ade send" "$XDG_CONFIG_HOME/helix/config.toml" || fail "could not point + a at this checkout"
+if [[ -d $SANDBOX_CONFIG/yazi ]]; then
+  for d in "$SANDBOX_REAL_HOME"/.config/yazi/{plugins,flavors}/*.yazi(N/); do
+    mkdir -p "$XDG_CONFIG_HOME/yazi/${d:h:t}"
+    [[ -e $XDG_CONFIG_HOME/yazi/${d:h:t}/${d:t} ]] || cp -R "$d" "$XDG_CONFIG_HOME/yazi/${d:h:t}/"
+  done
+fi
 
 # A clone whose branch has a commit (a.txt changed, c.txt added) and an
 # uncommitted new file (b.txt).
