@@ -1,4 +1,5 @@
-# worktree.zsh
+# ade.zsh: shell functions for ade. Source it from ~/.zshrc, after compinit.
+#
 # Git worktree commands: short names for `ade worktree` that also cd where it
 # says (`wthelp` lists every option).
 #
@@ -52,6 +53,16 @@ wthelp() {
 rm, ls, prune and convert, and cd where it reports (wt without -s/-t/-b/-p).
 '
   command ade worktree help
+}
+
+# ocreload: restart this tab's agent in the current folder. The shared
+# OpenCode service outlives the pane, so its config is reloaded first, once it
+# has let go of the folders it served that are gone (removed worktrees): its
+# reload fails on them.
+ocreload() {
+  command ade forget-gone >/dev/null
+  command opencode reload || return
+  command ade restart-agent "$PWD"
 }
 
 # ---- completions -------------------------------------------------------------

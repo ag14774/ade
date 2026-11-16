@@ -23,7 +23,7 @@ Helix, OpenCode and tuicr; each is an adapter you can swap. Made to fork.
 | [`packages/opencode-ade`](packages/opencode-ade)                     | OpenCode plugin: `show_file`, `delegate` and `status`                                                                               |
 | [`packages/opencode-ade-status`](packages/opencode-ade-status)       | OpenCode plugin: done and failed statuses for the tabs, and OpenCode's sounds once, in the right tab                                |
 | [`packages/opencode-ade-worktrees`](packages/opencode-ade-worktrees) | OpenCode plugin: OpenCode's own worktrees through ade-kit                                                                           |
-| `starter/`                                                           | a setup to start from (in progress): the ADE config, the `wt*` shell functions, `opencode-pane`, the tab layout                     |
+| `starter/`                                                           | a setup to start from (in progress): the ADE config, the `wt*` shell functions and `ocreload`, `opencode-pane`, the tab layout                     |
 | `tests/`                                                             | the zsh tests, and the sandbox the live ones run in                                                                                 |
 
 ## Requirements
@@ -81,7 +81,7 @@ service.
 | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
 | `opencode-ade`, `opencode-ade-status`, OpenCode (upgrade)          | `zsh tests/ade_plugin_smoke.zsh` (nine short model calls, with your OpenCode provider config) |
 | `opencode-ade-status`'s sounds, OpenCode (upgrade)                 | `zsh tests/opencode_attention_smoke.zsh`                                                      |
-| `opencode-ade-worktrees`, `ade worktree`                           | `zsh tests/opencode_worktrees_smoke.zsh` (no Zellij)                                          |
+| `opencode-ade-worktrees`, `ade worktree`, `ade forget-gone`, `ocreload` | `zsh tests/opencode_worktrees_smoke.zsh` (no Zellij) |
 | the keys and their scripts, Zellij, Helix, Yazi or tuicr (upgrade) | `zsh tests/keys_smoke.zsh` (needs the starter's Zellij and Helix config; not yet)             |
 
 ## License

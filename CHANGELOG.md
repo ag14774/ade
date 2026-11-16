@@ -17,6 +17,14 @@ its `packages/` (README, "Install"). Then `opencode service restart`.
 - `starter/` holds what the tests need from a setup so far: the ADE config,
   the `wt*` shell functions (which now run `ade` from `PATH`),
   `opencode-pane` and the tab layout.
+- `ade forget-gone`: the agent forgets the folders that no longer exist.
+  OpenCode's service failed its reload on them, so `ocreload` stopped before
+  restarting the agent. `ade worktree rm`, `prune` and OpenCode's own
+  worktree removals now do it too, and `ocreload` runs it first. After
+  pulling: `opencode service restart`. Agent adapters of your own can have a
+  `forgetGone`. (Ported from the dotfiles, #2.)
+- `ocreload` (restart the tab's agent) is in the starter's `shell/ade.zsh`,
+  with the `wt*` functions.
 - The test sandbox takes the config under test from `SANDBOX_CONFIG`,
   `SANDBOX_BIN` and `SANDBOX_LAYOUT` (default: the starter), and puts this
   checkout's `ade` on `PATH`.
