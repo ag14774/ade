@@ -17,8 +17,8 @@ and tests, and the agent panes no longer need a script of their own.
 2. If you copied the starter's files: drop `"command": ["opencode-pane"]`
    from your ADE config and `~/.local/bin/opencode-pane`, use the layout's
    new agent pane (`ade agent`) and restore hook, and source
-   `starter/shell/ade.sh` instead of `ade.zsh` (rename `ocreload` calls to
-   `ade restart-agent --reload`).
+   `starter/shell/ade.sh` instead of `ade.zsh` (`ocreload` is gone:
+   `ade restart-agent` starts a fresh agent in the current folder).
 3. `opencode service restart` (interrupts running conversations), then
    `ade restart-agent` in each tab, so its agent pane runs `ade agent`. A
    saved session's panes still name `opencode-pane`: until each tab has been
@@ -32,8 +32,10 @@ and tests, and the agent panes no longer need a script of their own.
   Zellij saves: a restored pane carries on with its folder's latest
   conversation and never gets its task again. It replaces the starter's
   `opencode-pane` script; the ADE config needs no `opencode.command` for it.
-- `ade restart-agent --reload`: the agent first forgets the folders that are
-  gone and reloads its configuration, as the starter's `ocreload` did.
+- The starter's `ocreload` is gone. `ade restart-agent` starts a fresh agent,
+  on a new conversation, in the current folder; it never reloads the agent's
+  configuration for every pane (OpenCode: `opencode reload`, which cancels
+  the questions waiting in every tab).
 - `ade forget-gone`: the agent forgets the folders that no longer exist.
   OpenCode's service failed its reload on them. `ade worktree rm`, `prune`
   and OpenCode's own worktree removals do it too. (From the dotfiles,
@@ -47,7 +49,7 @@ and tests, and the agent panes no longer need a script of their own.
   the folder is gone. An agent removing its own worktree moves out first
   (`session_move`), then removes it in a later step; the ADE plugin's
   instructions say so.
-- Agent adapters of your own can have `resume`, `reload`, `forgetGone`,
+- Agent adapters of your own can have `resume`, `forgetGone`,
   `conversationsIn` and `moveConversations`.
 - `starter/`: a setup to copy and own, with `starter/link.sh`, which runs
   `install.sh` and links the starter's config into place: Zellij's keys

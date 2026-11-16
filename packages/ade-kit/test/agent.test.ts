@@ -83,26 +83,6 @@ test("OpenCode resume: --continue when the folder has a top-level conversation; 
     assert.equal(await opencodeAnswering({ [latest]: answer }).agent.resume?.("/w/a b", env), undefined)
 })
 
-test("OpenCode reload: a running service reloads; a stopped one is left alone; a failure says why", async () => {
-  const running = { "service status": ok("http://127.0.0.1:4096\n") }
-  const { agent, ran } = opencodeAnswering(running)
-  await agent.reload?.({})
-  assert.deepEqual(
-    ran.map((r) => r.argv.slice(1).join(" ")),
-    ["service status", "reload"],
-  )
-  const stopped = opencodeAnswering({ "service status": ok("stopped\n") })
-  await stopped.agent.reload?.({})
-  assert.deepEqual(
-    stopped.ran.map((r) => r.argv.slice(1).join(" ")),
-    ["service status"],
-  )
-  await assert.rejects(
-    opencodeAnswering({ ...running, reload: failed("Error: Directory not found") }).agent.reload!({}),
-    new Error("OpenCode could not reload: Error: Directory not found"),
-  )
-})
-
 test("OpenCode forgetGone: a stopped service, or no opencode, is asked nothing more (opencode api would start one)", async () => {
   for (const status of [ok("stopped\n"), failed("spawn opencode ENOENT")]) {
     const { agent, ran } = opencodeAnswering({ "service status": status })

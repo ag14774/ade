@@ -34,9 +34,9 @@ const USAGE = `usage: ade open FILE[:LINE[:COLUMN]]...
          run the configured agent here, on the conversation or the prompt given: the command of
          an agent pane. It runs again as \`ade agent --resume\`, the command a multiplexer saves,
          which carries on with this folder's latest conversation (never sends the prompt again)
-       ade restart-agent [--reload] [DIR]
-         replace this tab's agent with a fresh one started in DIR (default: here); focus stays.
-         --reload: the agent first forgets folders that are gone and reloads its configuration
+       ade restart-agent [DIR]
+         replace this tab's agent with a fresh one, on a new conversation, started in DIR
+         (default: here); focus stays
        ade forget-gone
          let the agent forget folders that no longer exist, and print them (OpenCode: its
          service's locations, on which its reload fails); ade worktree rm does it too
@@ -194,12 +194,9 @@ async function main(command: string | undefined, args: string[]) {
       const argv = await agentCommand(kit(), start, { env: rest, cwd: caller.cwd })
       process.exit(await runHere(argv, rest))
     }
-    case "restart-agent": {
-      const reload = args[0] === "--reload"
-      const rest = reload ? args.slice(1) : args
-      if (rest.length > 1) throw new UsageError()
-      return restartAgent(kit(), rest[0] ?? caller.cwd, caller, { reload })
-    }
+    case "restart-agent":
+      if (args.length > 1) throw new UsageError()
+      return restartAgent(kit(), args[0] ?? caller.cwd, caller)
     case "forget-gone":
       if (args.length) throw new UsageError()
       for (const dir of await forgetGone(kit(), caller)) process.stdout.write(`${dir}\n`)

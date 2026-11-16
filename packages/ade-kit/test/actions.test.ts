@@ -640,48 +640,16 @@ test("restartAgent: `ade agent` in place of the tab's agent pane, in the folder;
   await assert.rejects(restartAgent(kitWith(), ".", noPane), /^Error: not inside Fake$/)
 })
 
-// An agent of your own that records what it is asked, and carries on with a
-// conversation only in a folder named "talked".
+// An agent of your own that carries on with a conversation only in a folder
+// named "talked".
 const recordingAgent = join(temp, "recording-agent.ts")
 writeFileSync(
   recordingAgent,
   `export default (kit) => ({
     ...kit.builtin.agent("opencode"),
-    forgetGone: async () => (globalThis.asked.push("forgetGone"), []),
-    reload: async () => {
-      globalThis.asked.push("reload")
-      if (globalThis.reloadFails) throw new Error("no reload")
-    },
     resume: async (dir) => (dir.endsWith("/talked") ? ["opencode", "--continue"] : undefined),
   })`,
 )
-const asking = (reloadFails = false) => {
-  const asked: string[] = []
-  Object.assign(globalThis, { asked, reloadFails })
-  return asked
-}
-
-test("restartAgent --reload: the agent forgets and reloads first; if the reload fails, the agent stays", async () => {
-  let asked = asking()
-  let calls = record()
-  await restartAgent(kitWith({ agent: recordingAgent }), ".", withPath("1"), { reload: true })
-  assert.deepEqual(asked, ["forgetGone", "reload"])
-  assert.equal(calls.length, 1)
-  asked = asking(true)
-  calls = record()
-  await assert.rejects(
-    restartAgent(kitWith({ agent: recordingAgent }), ".", withPath("1"), { reload: true }),
-    /^Error: no reload$/,
-  )
-  assert.deepEqual([asked, calls], [["forgetGone", "reload"], []])
-  // Outside a tab, the agent still reloads (for every pane); the restart is refused.
-  asked = asking()
-  await assert.rejects(
-    restartAgent(kitWith({ agent: recordingAgent }), ".", noPane, { reload: true }),
-    /^Error: not inside Fake$/,
-  )
-  assert.deepEqual(asked, ["forgetGone", "reload"])
-})
 
 test("agentCommand: the agent on the start given; without one, carrying on where it can, else afresh", async () => {
   const opencode = join(temp, "bin", "opencode")

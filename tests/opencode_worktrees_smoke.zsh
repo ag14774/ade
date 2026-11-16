@@ -6,8 +6,8 @@
 # seeded files, and need force when they have changes. A worktree with a
 # running conversation stays; once removed, its conversations move to main and
 # carry on there. The service lets go of the folders that are gone (its reload
-# fails on them): those removed by OpenCode or `ade worktree rm`, and those
-# deleted by hand, before `ade restart-agent --reload` reloads it. OpenCode runs a private
+# fails on them): those removed by OpenCode or `ade worktree rm`, and, with
+# `ade forget-gone`, those deleted by hand. OpenCode runs a private
 # background service (its own HOME, XDG folders and port; stopped by its pid),
 # with this checkout's packages; no Zellij, no model calls: a conversation
 # runs while it waits on a model server of the test's that never answers.
@@ -56,7 +56,7 @@ print -r -- "{\"providers\": {\"stall\": {\"name\": \"Stall\", \"package\": \"@o
 # OpenCode only in this HOME, with the private port in its service config.
 oc() {
   [[ $HOME == $TMP/home ]] || fail "refusing to run opencode outside the test's HOME"
-  [[ "$1 $2" == "service set" || $(jq -r .port "$XDG_CONFIG_HOME/opencode/service.json" 2>/dev/null) == $PORT ]] \
+  [[ "$1 ${2-}" == "service set" || $(jq -r .port "$XDG_CONFIG_HOME/opencode/service.json" 2>/dev/null) == $PORT ]] \
     || fail "refusing to run opencode without the private port"
   "$OPENCODE" "$@"
 }
@@ -206,15 +206,12 @@ out=$(cd "$P/main" && node "$ade" worktree rm chat 2>&1) || fail "ade worktree r
 [[ $out == *"moved a conversation to main"* && $(folder_of "$chat") == "$P/main" ]] \
   || fail "ade worktree rm should move chat's conversation to main: $out"
 
-# Its opencode is the test's: HOME and the XDG folders are the test's, with
-# the private port. The restart itself needs Zellij, which is not here: the
-# refusal comes only once the reload worked.
-step "a worktree deleted by hand: ade restart-agent --reload lets go of it, then the reload works"
+step "a worktree deleted by hand: ade forget-gone lets go of it, then OpenCode's reload works"
 location "$dir" >/dev/null
 rm -rf "$dir"
-out=$(cd "$P/main" && node "$ade" restart-agent --reload 2>&1)
-[[ $out == "ade restart-agent: not inside Zellij" ]] \
-  || fail "restart-agent --reload should reload the service, then try to restart the agent: $out"
+out=$(cd "$P/main" && node "$ade" forget-gone 2>&1) || fail "ade forget-gone failed: $out"
+[[ $out == "$dir" ]] || fail "ade forget-gone should print $dir: $out"
 ! loaded "$dir" || fail "the service should have let go of $dir"
+out=$(oc reload 2>&1) || fail "OpenCode's reload should work once the service let go of $dir: $out"
 
 print "opencode worktrees smoke test: ok"

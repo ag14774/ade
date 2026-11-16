@@ -55,8 +55,7 @@ call it).
 
 After a `git pull`: rerun the script, `opencode service restart` (it keeps a
 plugin's server part until then; OpenCode panes warn when it runs old code),
-and `ade restart-agent --reload` in a tab for its OpenCode to load the new app
-part. [CHANGELOG.md](CHANGELOG.md) says what else a change needs.
+and `ade restart-agent` in a tab for its OpenCode to load the new app part. [CHANGELOG.md](CHANGELOG.md) says what else a change needs.
 
 ## Make it yours
 
@@ -88,7 +87,7 @@ starter's config, or yours with `SANDBOX_CONFIG` (see the starter's README).
 | --- | --- |
 | `opencode-ade`, `opencode-ade-status`, OpenCode (upgrade) | `zsh tests/ade_plugin_smoke.zsh` (nine short model calls, with your OpenCode provider config) |
 | `opencode-ade-status`'s sounds, OpenCode (upgrade) | `zsh tests/opencode_attention_smoke.zsh` |
-| `opencode-ade-worktrees`, `ade worktree`, `ade forget-gone`, `ade restart-agent --reload` | `zsh tests/opencode_worktrees_smoke.zsh` (no Zellij) |
+| `opencode-ade-worktrees`, `ade worktree`, `ade forget-gone` | `zsh tests/opencode_worktrees_smoke.zsh` (no Zellij) |
 | `ade agent`, the starter's layout or restore hook, Zellij, Helix or OpenCode (upgrade) | `zsh tests/zellij_restore_smoke.zsh` |
 | the keys and their scripts, Zellij, Helix, Yazi or tuicr (upgrade) | `zsh tests/keys_smoke.zsh` (a stand-in for OpenCode) |
 

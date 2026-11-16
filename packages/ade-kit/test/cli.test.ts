@@ -23,7 +23,6 @@ test("wrong usage: the usage on stderr, exit status 2", () => {
     ["open"],
     ["review", "x"],
     ["restart-agent", "a", "b"],
-    ["restart-agent", "--reload", "a", "b"],
     ["agent", "--prompt"],
     ["agent", "--resume", "x"],
     ["agent", "--model", "m"],

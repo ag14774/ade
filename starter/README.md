@@ -20,7 +20,7 @@ Helix above the shell once you open a file.
 | `Alt-v` | review everything the worktree changed in tuicr; `y` hands your comments to OpenCode, `e` opens a file in Helix |
 | "delegate this" | OpenCode starts the work in a new worktree tab |
 | "how are the other worktrees doing?" | OpenCode's `status` tool |
-| `ade restart-agent --reload` | restart the tab's OpenCode in the current folder, after its service reloads its configuration and plugins |
+| `ade restart-agent` | a fresh OpenCode, on a new conversation, in the current folder, in place of the tab's |
 | tab mode `g`, `G` | collapse or expand the current group of tabs in the bar, or all |
 
 Each tab's name in the top bar starts with its agents' most urgent status

@@ -300,20 +300,14 @@ export async function where(kit: Kit, caller: Caller) {
   return callerFolder(at && (await at.mux.panes()), at?.where, caller.cwd)
 }
 
-// Replace the agent of the caller's tab with a fresh one started in `dir` (a
-// new agent pane when the tab has none). Focus stays where it is. With
-// `reload`, the agent first forgets the folders that are gone and reloads its
-// configuration and plugins (see Agent), which is done for every pane even
-// outside a tab; if that fails, the agent stays.
-export async function restartAgent(kit: Kit, dir: string, caller: Caller, o: { reload?: boolean } = {}) {
+// Replace the agent of the caller's tab with a fresh one, on a new
+// conversation, started in `dir` (a new agent pane when the tab has none).
+// Focus stays where it is.
+export async function restartAgent(kit: Kit, dir: string, caller: Caller) {
   const agent = await loadAgent(kit)
   const cwd = resolve(caller.cwd, dir)
   if (!isDirectory(cwd)) throw new Error(`${cwd} is not a folder`)
   const argv = paneCommand(agent, {}, caller.env)
-  if (o.reload) {
-    await agent.forgetGone?.(caller.env)
-    await agent.reload?.(caller.env)
-  }
   const { where: at, mux, panes, tab } = await callerTab(kit, caller, `${labelOf(agent)} runs in a pane`)
   const pane = paneWith(panes, tab, "agent")
   if (pane) return void (await mux.start({ tab, role: "agent", argv, focus: false, replace: pane.id, cwd }))

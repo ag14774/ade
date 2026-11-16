@@ -32,7 +32,7 @@ everything.
 | `ade review` | Reviews what the worktree changed since `worktrees.base`, committed or not, in the configured reviewer (tuicr by default), in the terminal it runs in. When you end the review, your comments go to the tab's agent: filled in for you to send, or sent (`review.deliver`). With nothing to review, it says so. If the tab already has a review open, it shows that one. The worktree is that of the folder `ade where` prints. |
 | `ade review --scope` | Prints what a review here covers: `-r BASE..HEAD` for the commits since `worktrees.base`, `-w` for uncommitted changes. |
 | `ade agent [--session ID] [--prompt TEXT]` | Runs the configured agent in this terminal, on the conversation or the prompt given: the command of an agent pane (ade starts agent panes with it). It runs again as `ade agent --resume`, with the start in its environment only, and stays as the agent's parent, so a multiplexer that saves panes by command line saves `ade agent --resume`. Restored, that carries on with the folder's latest conversation, where the agent can (an agent's `resume`), and never sends the prompt again. |
-| `ade restart-agent [--reload] [DIR]` | Replaces the tab's agent with a fresh one started in `DIR` (default: the current folder), in the same place; a tab without an agent gets one (with Zellij, on the right: `zellij.newPanes`). Focus stays where it is. With `--reload`, the agent first forgets the folders that are gone and reloads its configuration and plugins for every pane (OpenCode: its service), also outside a tab; if that fails, the agent stays. |
+| `ade restart-agent [DIR]` | Replaces the tab's agent with a fresh one, on a new conversation, started in `DIR` (default: the current folder), in the same place; a tab without an agent gets one (with Zellij, on the right: `zellij.newPanes`). Focus stays where it is. The old one's conversation isn't stopped. |
 | `ade forget-gone` | Lets the agent forget the folders that no longer exist, such as worktrees deleted by hand, and prints them. OpenCode's shared service keeps a location for every folder it served, also once the folder is gone, and its reload then fails; only a running service is asked. `ade worktree rm` does this too. |
 | `ade where` | Prints the folder of the focused tiled pane of its own tab; if that pane reports no folder, the tab's agent pane's, then its shell pane's. Outside a multiplexer, or when that folder no longer exists, it prints the folder it was started in. So in a tiled pane you get your own folder, and in a floating pane opened by a key (which starts in the session's folder) the folder of the focused tiled pane underneath. |
 | `ade worktree COMMAND` | Creates, opens, lists and removes worktrees: below. |
@@ -158,13 +158,12 @@ repository and is named in the config by its path, so most changes need no
 fork.
 
 An agent's optional operations: `resume` gives the command that carries on
-with a folder's latest conversation (`ade agent --resume`), `reload` reloads
-its configuration (`ade restart-agent --reload`), `forgetGone` lets go of
-folders that no longer exist, `conversationsIn` lists the conversations in a
-folder (running or not) and `moveConversations` moves them to another
-(`ade worktree rm`, above). The OpenCode adapter has them all, through its
-CLI (`opencode api`, `opencode reload`), and asks only a running service,
-except `resume`: the agent it starts would start the service anyway.
+with a folder's latest conversation (`ade agent --resume`), `forgetGone`
+lets go of folders that no longer exist, `conversationsIn` lists the
+conversations in a folder (running or not) and `moveConversations` moves them
+to another (`ade worktree rm`, above). The OpenCode adapter has them all,
+through `opencode api`, and asks only a running service, except `resume`:
+the agent it starts would start the service anyway.
 
 Programs are reached through the worktree: an editor or agent without its own
 remote control through its pane in the worktree's tab (so it needs a

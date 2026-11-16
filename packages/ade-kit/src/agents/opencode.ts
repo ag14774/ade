@@ -94,13 +94,6 @@ export default (kit: Kit) => {
       const answer = parsed(result.stdout)
       return result.ok && isPage(answer) && answer.data.length ? [...(command as string[]), "--continue"] : undefined
     },
-    // The service reloads its config and plugins (`opencode reload`); a
-    // stopped one has nothing loaded.
-    reload: async (env) => {
-      if (!(await serving(env))) return
-      const reloaded = await opencode(["reload"], env)
-      if (!reloaded.ok) throw new Error(`OpenCode could not reload: ${why(reloaded)}`)
-    },
     forgetGone: async (env) => {
       if (!(await serving(env))) return []
       const locations = await get(LOCATIONS, env, Array.isArray, "list OpenCode's locations")
