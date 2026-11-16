@@ -148,6 +148,12 @@ change only what you need). An adapter of your own lives outside the
 repository and is named in the config by its path, so most changes need no
 fork.
 
+An agent's optional operations serve the worktree commands: `forgetGone`
+lets go of folders that no longer exist, `conversationsIn` lists the
+conversations in a folder (running or not) and `moveConversations` moves
+them to another (`ade worktree rm`, above). The OpenCode adapter has all
+three, through `opencode api`, and asks only a running service.
+
 Programs are reached through the worktree: an editor or agent without its own
 remote control through its pane in the worktree's tab (so it needs a
 multiplexer), one with remote control under a name derived from the worktree
