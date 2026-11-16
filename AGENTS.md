@@ -17,10 +17,12 @@ an editor, a coding agent and a reviewer wired together.
     interfaces (`src/types.ts`); the public surface (`src/index.ts`).
   - `opencode-ade`, `opencode-ade-status`, `opencode-ade-worktrees`: the
     OpenCode plugins, linked into `~/.config/opencode/plugins/`.
-- `starter/`: a setup to copy and own: the ADE config, the `wt*` shell
-  functions (short names for `ade worktree`), `opencode-pane`, the Zellij
-  layout. Its files explain each block for a newcomer, the one exception to
-  sparse comments.
+- `starter/`: a setup to copy and own: Zellij keys and layout, Helix keys,
+  the ADE config, the `wt*` shell functions (short names for
+  `ade worktree`) and `ocreload`, `opencode-pane`, and `link.sh`, which
+  links it all into place (`--core`: only `ade` and the plugins). Its files
+  explain each block for a newcomer, the one exception to sparse comments.
+  `tests/keys_smoke.zsh` drives it.
 - `tests/`: zsh tests; `tests/lib/zellij-sandbox.zsh` for the live ones.
   Each package's node tests are in its `test/`.
 

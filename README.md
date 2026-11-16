@@ -23,7 +23,7 @@ Helix, OpenCode and tuicr; each is an adapter you can swap. Made to fork.
 | [`packages/opencode-ade`](packages/opencode-ade)                     | OpenCode plugin: `show_file`, `delegate` and `status`                                                                               |
 | [`packages/opencode-ade-status`](packages/opencode-ade-status)       | OpenCode plugin: done and failed statuses for the tabs, and OpenCode's sounds once, in the right tab                                |
 | [`packages/opencode-ade-worktrees`](packages/opencode-ade-worktrees) | OpenCode plugin: OpenCode's own worktrees through ade-kit                                                                           |
-| `starter/`                                                           | a setup to start from (in progress): the ADE config, the `wt*` shell functions and `ocreload`, `opencode-pane`, the tab layout                     |
+| `starter/`                                                           | a setup to start from: Zellij keys and layout, Helix keys, the ADE config, the `wt*` shell functions and `ocreload`, `opencode-pane`, `link.sh` |
 | `tests/`                                                             | the zsh tests, and the sandbox the live ones run in                                                                                 |
 
 ## Requirements
@@ -38,20 +38,14 @@ From a clone; nothing comes from npm:
 
 ```sh
 git clone https://github.com/ag14774/ade ~/.local/share/ade
-cd ~/.local/share/ade
-npm install --omit=dev --omit=optional --omit=peer   # links the packages, downloads nothing
-ln -s ~/.local/share/ade/packages/ade-kit/src/cli.ts ~/.local/bin/ade
-mkdir -p ~/.config/opencode/plugins
-for p in ade ade-status ade-worktrees; do
-  ln -s ~/.local/share/ade/packages/opencode-$p ~/.config/opencode/plugins/$p
-done
+~/.local/share/ade/starter/link.sh
 ```
 
-Then `opencode service restart`, so the service loads the plugins. Add
-`"-opencode.notifications"` to the `plugins` list in
-`~/.config/opencode/cli.json` so that opencode-ade-status plays the sounds
-instead of OpenCode. Wiring Zellij, Helix and your shell to `ade` is what the
-starter is for; until it is complete, see each package's README.
+[`starter/link.sh`](starter/link.sh) links `ade`, the OpenCode plugins and the
+[starter](starter)'s config into place (a config you already have stays) and
+says what is left to do: a line in `~/.zshrc`, `opencode service restart`, and
+granting the top bar its permission once. With a setup of your own,
+`starter/link.sh --core` links only `ade` and the plugins.
 
 ## Make it yours
 
@@ -82,7 +76,7 @@ service.
 | `opencode-ade`, `opencode-ade-status`, OpenCode (upgrade)          | `zsh tests/ade_plugin_smoke.zsh` (nine short model calls, with your OpenCode provider config) |
 | `opencode-ade-status`'s sounds, OpenCode (upgrade)                 | `zsh tests/opencode_attention_smoke.zsh`                                                      |
 | `opencode-ade-worktrees`, `ade worktree`, `ade forget-gone`, `ocreload` | `zsh tests/opencode_worktrees_smoke.zsh` (no Zellij) |
-| the keys and their scripts, Zellij, Helix, Yazi or tuicr (upgrade) | `zsh tests/keys_smoke.zsh` (needs the starter's Zellij and Helix config; not yet)             |
+| the keys and their scripts, Zellij, Helix, Yazi or tuicr (upgrade) | `zsh tests/keys_smoke.zsh` (a stand-in for OpenCode) |
 
 ## License
 

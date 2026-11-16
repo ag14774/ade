@@ -14,9 +14,13 @@ and tests. Nothing changes in how they work.
 `ade` link and the three plugin links in `~/.config/opencode/plugins/` at
 its `packages/` (README, "Install"). Then `opencode service restart`.
 
-- `starter/` holds what the tests need from a setup so far: the ADE config,
-  the `wt*` shell functions (which now run `ade` from `PATH`),
-  `opencode-pane` and the tab layout.
+- `starter/`: a setup to start from, and `starter/link.sh` to link it (or
+  with `--core`, only `ade` and the plugins) into place. Zellij's keys
+  (`Alt-t`, `Alt-y`, `Alt-v`, tab mode `g`/`G`) as additions to its
+  defaults, the tab layout, the picker and the restore hook; Helix's `+ a`
+  and `Ctrl-r`; the ADE config; `cli.json`; the `wt*` functions and
+  `ocreload` (running `ade` from `PATH`); `opencode-pane` (in your shell if
+  it is zsh or bash).
 - `ade forget-gone`: the agent forgets the folders that no longer exist.
   OpenCode's service failed its reload on them, so `ocreload` stopped before
   restarting the agent. `ade worktree rm`, `prune` and OpenCode's own
