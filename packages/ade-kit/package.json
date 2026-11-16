@@ -17,7 +17,7 @@
     "ade": "./src/cli.ts"
   },
   "engines": {
-    "node": ">=23.6"
+    "node": ">=24"
   },
   "scripts": {
     "test": "node --test test/*.test.ts"

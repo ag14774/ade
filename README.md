@@ -29,7 +29,7 @@ Helix, OpenCode and tuicr; each is an adapter you can swap. Made to fork.
 
 ## Requirements
 
-Node 23.6 or newer (the TypeScript runs as it is, with no build step), git,
+Node 24 or newer (the TypeScript runs as it is, with no build step), git,
 Zellij 0.46, Helix, OpenCode 2.2.5 or newer, tuicr, Yazi and jq. The GitHub CLI
 is optional (`ade worktree prune -m`).
 

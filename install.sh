@@ -42,6 +42,17 @@ link() {
 }
 
 install_ade() {
+  # Node runs the TypeScript as it is (24 or newer); npm links the packages.
+  local node
+  node=$(node -p 'process.versions.node' 2>/dev/null) || node=none
+  if [ "${node%%.*}" = none ] || [ "${node%%.*}" -lt 24 ]; then
+    echo "ade needs Node 24 or newer (found: $node)" >&2
+    exit 1
+  fi
+  command -v npm >/dev/null || {
+    echo "ade needs npm (Node's package manager; some systems package it apart)" >&2
+    exit 1
+  }
   (cd "$ROOT" && npm_config_update_notifier=false npm install --omit=dev --omit=optional --omit=peer --no-audit --no-fund --loglevel=error)
   link "$ROOT/packages/ade-kit/src/cli.ts" "$BIN/ade"
   local p

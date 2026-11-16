@@ -30,7 +30,7 @@ project.
 
 ## Requirements
 
-Node 23.6 or newer, git, jq, Zellij 0.46, Helix, OpenCode 2.2.5 or newer,
+Node 24 or newer, git, jq, Zellij 0.46, Helix, OpenCode 2.2.5 or newer,
 Yazi, tuicr, and zsh for the shell functions. The GitHub CLI is optional
 (`wtprune -m`). A Nerd Font shows the status icons.
 

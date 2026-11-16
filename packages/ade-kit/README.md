@@ -6,7 +6,7 @@ code reviewer to git worktrees. Each tool is an adapter; the built-ins are
 Zellij, Helix (and Mitos), OpenCode and tuicr, and worktrees can be laid out
 three ways.
 
-It needs Node 23.6 or newer (it runs its TypeScript directly, with no build
+It needs Node 24 or newer (it runs its TypeScript directly, with no build
 step) and git, and uses only Node's built-in modules. The Zellij adapter needs
 Zellij 0.46; `ade worktree prune -m` needs the GitHub CLI.
 
