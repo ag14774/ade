@@ -18,6 +18,8 @@ export const environment = (o: { multiplexer: string; command: string; editor: s
     "  or OpenCode's worktree tools).",
     "- delegate and status work on the repository of this conversation's folder. For another repository, give",
     "  them a folder in it as `directory`; there is no need to move this conversation first.",
+    "- Before removing the worktree this conversation is in, move the conversation out with session_move; then",
+    "  remove the worktree in a later step (a worktree with a running conversation is not removed).",
   ].join("\n")
 
 // The instructions for the configured multiplexer and editor.

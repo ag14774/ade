@@ -41,8 +41,9 @@ parts:
   the conversation its pane shows (a subagent's go to its parent's pane) and
   carries them out with ade-kit, in-process, with that pane's environment. It
   also gives each conversation it shows short instructions about this setup
-  (tabs, `show_file`, `status`, delegating only when asked) as a
-  per-conversation instruction entry, so OpenCode elsewhere never sees them.
+  (tabs, `show_file`, `status`, delegating only when asked, moving out before
+  removing its own worktree) as a per-conversation instruction entry, so
+  OpenCode elsewhere never sees them.
 
 `src/rpc.ts` holds the calls between the two. Its `show_file`, `delegate` and
 `status` methods do what the tools do, for scripts:
