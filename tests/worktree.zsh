@@ -132,8 +132,8 @@ remote="$TMP/acme/demo.git"
 seed="$TMP/seed"
 project="$TMP/project"
 
-git init -q --bare "$remote"
-git init -q "$seed"
+git init -q -b main --bare "$remote"
+git init -q -b main "$seed"
 git -C "$seed" config user.name Test
 git -C "$seed" config user.email test@example.com
 print 'base' > "$seed/app.txt"
