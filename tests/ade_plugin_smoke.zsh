@@ -7,8 +7,8 @@
 # delegated tabs for it.
 #
 # OpenCode runs a private background service with temporary data and config
-# (your auth, Google credentials, model preferences and
-# ~/.config/zsh/secrets.zsh are reused), on a port of its own, in a throwaway
+# (your auth, Google credentials and model preferences are reused; the
+# environment you run it in is passed on), on a port of its own, in a throwaway
 # Zellij session in a sandbox (tests/lib/zellij-sandbox.zsh: its own Zellij
 # server and HOME), so it never touches `main`, your Zellij cache or your
 # OpenCode service. Most steps call the plugin's RPC methods directly; three
@@ -144,7 +144,6 @@ mkdir -p "$TMP/oc/config/ade"
 cp "$ROOT/starter/ade/config.json" "$TMP/oc/config/ade/"
 export XDG_DATA_HOME=$TMP/oc/data XDG_STATE_HOME=$TMP/oc/state XDG_CACHE_HOME=$TMP/oc/cache \
   XDG_CONFIG_HOME=$TMP/oc/config
-[[ -r $REAL/.config/zsh/secrets.zsh ]] && source "$REAL/.config/zsh/secrets.zsh"
 # Google's credentials (for models on Vertex AI) are found through HOME.
 adc=$REAL/.config/gcloud/application_default_credentials.json
 [[ -z ${GOOGLE_APPLICATION_CREDENTIALS:-} && -r $adc ]] && export GOOGLE_APPLICATION_CREDENTIALS=$adc
