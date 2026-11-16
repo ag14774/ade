@@ -119,7 +119,20 @@ export interface Agent {
   // a removed worktree (ade worktree rm does this after removing one); the
   // folders it let go of.
   forgetGone?(env: Record<string, string | undefined>): Promise<string[]>
+  // The conversations located in the folder `dir` or in a folder inside it,
+  // subagents' included; none when the agent can't be asked without starting
+  // it. ade worktree rm refuses to remove a worktree while one of its
+  // conversations is running (it would fail once the folder is gone), and
+  // moves the others out with moveConversations once it is removed.
+  conversationsIn?(dir: string, env: Record<string, string | undefined>): Promise<Conversation[]>
+  // Move the conversations `ids` (idle ones, from conversationsIn) to the
+  // folder `dir`, where they carry on; their own folder may be gone.
+  moveConversations?(ids: string[], dir: string, env: Record<string, string | undefined>): Promise<void>
 }
+
+// One of the agent's conversations: whether it is running now, and for a
+// subagent's, the ID of the conversation it works for.
+export type Conversation = { id: string; title: string; running: boolean; parent?: string }
 
 // pasteAgent (agent.ts): an agent reached by pasting into its pane.
 export type PasteAgentOptions = {

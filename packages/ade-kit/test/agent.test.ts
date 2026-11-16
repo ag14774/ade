@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { mkdtempSync, realpathSync } from "node:fs"
+import { mkdirSync, mkdtempSync, realpathSync, symlinkSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { test } from "node:test"
@@ -111,5 +111,120 @@ test("OpenCode forgetGone: the running service evicts only the locations whose f
   await assert.rejects(
     opencodeAnswering({ ...running, [evict]: failed("Error: boom") }).agent.forgetGone!({}),
     new Error(`OpenCode could not let go of ${gone}: Error: boom`),
+  )
+})
+
+test("OpenCode conversations: a stopped service, or no opencode, is asked nothing more, and nothing is moved", async () => {
+  for (const status of [ok("stopped\n"), failed("spawn opencode ENOENT")]) {
+    const { agent, ran } = opencodeAnswering({ "service status": status })
+    assert.deepEqual(await agent.conversationsIn?.("/w/feat", {}), [])
+    await assert.rejects(
+      agent.moveConversations!(["ses_a"], "/w/main", {}),
+      new Error("OpenCode's service stopped; its conversations were not moved to /w/main"),
+    )
+    assert.deepEqual(
+      ran.map((r) => r.argv),
+      [
+        ["opencode", "service", "status"],
+        ["opencode", "service", "status"],
+      ],
+    )
+  }
+})
+
+test("OpenCode conversationsIn: every session, page by page, located in the folder or inside it (also through a link), running or not", async () => {
+  const here = realpathSync(mkdtempSync(join(tmpdir(), "ade-agent-")))
+  const feat = join(here, "feat")
+  mkdirSync(join(feat, "sub"), { recursive: true })
+  symlinkSync(feat, join(here, "link"))
+  const session = (id: string, directory: string, more: object = {}) => ({
+    id,
+    title: id.slice(4),
+    location: { directory },
+    time: { created: 1, updated: 1 },
+    ...more,
+  })
+  const first = "/api/session?limit=1000"
+  const page = (sessions: unknown[], next: string) => ok(JSON.stringify({ data: sessions, cursor: { next } }))
+  const running = {
+    "service status": ok("http://127.0.0.1:4096\n"),
+    [`api get ${first}`]: page(
+      [
+        session("ses_plan", feat),
+        session("ses_task", join(feat, "sub"), { parentID: "ses_plan" }),
+        session("ses_linked", join(here, "link")),
+        session("ses_beside", `${feat}-2`),
+        session("ses_elsewhere", "/elsewhere"),
+        { id: "ses_nowhere" },
+      ],
+      "c1",
+    ),
+    [`api get ${first}&cursor=c1`]: page(
+      [session("ses_old", feat, { time: { created: 0, updated: 0, archived: 5 } })],
+      "c2",
+    ),
+    [`api get ${first}&cursor=c2`]: page([], "c3"),
+    "api get /api/session/active": ok(JSON.stringify({ data: { ses_linked: { type: "running" } } })),
+  }
+  const env = { HOME: "/home/me" }
+  const { agent, ran } = opencodeAnswering(running)
+  assert.deepEqual(await agent.conversationsIn?.(feat, env), [
+    { id: "ses_plan", title: "plan", running: false },
+    { id: "ses_task", title: "task", running: false, parent: "ses_plan" },
+    { id: "ses_linked", title: "linked", running: true },
+    { id: "ses_old", title: "old", running: false },
+  ])
+  assert.deepEqual(
+    ran.map((r) => r.argv.slice(1).join(" ")),
+    [
+      "service status",
+      `api get ${first}`,
+      `api get ${first}&cursor=c1`,
+      `api get ${first}&cursor=c2`,
+      "api get /api/session/active",
+    ],
+  )
+  assert.ok(ran.every((r) => r.env === env))
+  // None there: the service isn't asked which are running.
+  const elsewhere = opencodeAnswering(running)
+  assert.deepEqual(await elsewhere.agent.conversationsIn?.(join(here, "other"), env), [])
+  assert.ok(!elsewhere.ran.some((r) => r.argv.includes("/api/session/active")))
+  for (const [answers, why] of [
+    [
+      { [`api get ${first}`]: failed("HTTP 401 Unauthorized") },
+      "could not list OpenCode's conversations: HTTP 401 Unauthorized",
+    ],
+    [{ [`api get ${first}`]: ok("[]") }, "could not list OpenCode's conversations: []"],
+    [
+      { "api get /api/session/active": failed("HTTP 500 Internal Server Error") },
+      "could not ask OpenCode which conversations are running: HTTP 500 Internal Server Error",
+    ],
+  ] as const)
+    await assert.rejects(opencodeAnswering({ ...running, ...answers }).agent.conversationsIn!(feat, {}), new Error(why))
+})
+
+test("OpenCode moveConversations: each session is moved to the folder; failures say which and why", async () => {
+  const move = (id: string) => `api post /api/session/${id}/move --data {"directory":"/w/main"}`
+  const running = { "service status": ok("http://127.0.0.1:4096\n") }
+  const env = { HOME: "/home/me" }
+  const { agent, ran } = opencodeAnswering(running)
+  await agent.moveConversations?.(["ses_a", "ses_b", "ses_c", "ses_d", "ses_e"], "/w/main", env)
+  const calls = ran.map((r) => r.argv.slice(1).join(" "))
+  assert.equal(calls[0], "service status")
+  assert.deepEqual(calls.slice(1).sort(), ["ses_a", "ses_b", "ses_c", "ses_d", "ses_e"].map(move))
+  assert.ok(ran.every((r) => r.env === env))
+  // The service's own message (on stdout, as `opencode api` prints it), else what opencode said.
+  const notFound = {
+    ok: false,
+    stdout: JSON.stringify({ _tag: "SessionNotFoundError", message: "Session not found: ses_b" }),
+    stderr: "HTTP 404 Not Found",
+  }
+  await assert.rejects(
+    opencodeAnswering({ ...running, [move("ses_b")]: notFound }).agent.moveConversations!(
+      ["ses_a", "ses_b"],
+      "/w/main",
+      {},
+    ),
+    new Error("OpenCode could not move 1 of 2 conversations to /w/main: ses_b: Session not found: ses_b"),
   )
 })
