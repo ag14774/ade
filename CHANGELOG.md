@@ -27,6 +27,17 @@ its `packages/` (README, "Install"). Then `opencode service restart`.
   worktree removals now do it too, and `ocreload` runs it first. After
   pulling: `opencode service restart`. Agent adapters of your own can have a
   `forgetGone`. (Ported from the dotfiles, #2.)
+- Removing a worktree no longer strands its conversations in a folder that
+  is gone, where every prompt failed. `ade worktree rm`, `prune` and
+  OpenCode's own removals (the agents' `worktree_remove`) move the idle ones
+  to the default branch's worktree (the project folder when that is the one
+  removed), and refuse a worktree with a running conversation, `-f` or not,
+  naming it: a running conversation moves only at the end of its step, after
+  the folder is gone. An agent removing its own worktree moves out first
+  (`session_move`), then removes it in a later step; the ADE plugin's
+  instructions say so. After pulling: `opencode service restart`, and
+  restart the OpenCode panes. Agent adapters of your own can have
+  `conversationsIn` and `moveConversations`.
 - `ocreload` (restart the tab's agent) is in the starter's `shell/ade.zsh`,
   with the `wt*` functions.
 - The test sandbox takes the config under test from `SANDBOX_CONFIG`,
