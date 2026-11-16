@@ -69,8 +69,10 @@ const kitWith = (multiplexer = "none"): Kit =>
 
 // A stand-in for the OpenCode CLI, first on every io's PATH, so that no test
 // reaches your service: its service runs at FAKE_OPENCODE_URL (unset:
-// stopped) with the locations FAKE_OPENCODE_LOCATIONS, its API fails with
-// FAKE_OPENCODE_FAIL set, and each call is logged to FAKE_OPENCODE_LOG.
+// stopped) with the locations FAKE_OPENCODE_LOCATIONS, the sessions
+// FAKE_OPENCODE_SESSIONS (a list, on one page) of which FAKE_OPENCODE_ACTIVE
+// are running, its API fails with FAKE_OPENCODE_FAIL set, and each call is
+// logged to FAKE_OPENCODE_LOG.
 const bin = join(temp, "bin")
 mkdirSync(bin)
 writeFileSync(
@@ -78,10 +80,14 @@ writeFileSync(
   `#!/bin/sh
 [ -z "$FAKE_OPENCODE_LOG" ] || echo "$*" >> "$FAKE_OPENCODE_LOG"
 fail() { [ -z "$FAKE_OPENCODE_FAIL" ] || { echo "Error: boom" >&2; exit 1; }; }
-case "$1 $2" in
-  "service status") echo "\${FAKE_OPENCODE_URL:-stopped}" ;;
-  "api get") fail; echo "\${FAKE_OPENCODE_LOCATIONS:-[]}" ;;
-  "api delete") fail ;;
+active=$FAKE_OPENCODE_ACTIVE; [ -n "$active" ] || active='{}'
+sessions=$FAKE_OPENCODE_SESSIONS; [ -n "$sessions" ] || sessions='[]'
+case "$1 $2 $3" in
+  "service status ") echo "\${FAKE_OPENCODE_URL:-stopped}" ;;
+  "api get /api/debug/location") fail; echo "\${FAKE_OPENCODE_LOCATIONS:-[]}" ;;
+  "api get /api/session/active") fail; echo "{\\"data\\":$active}" ;;
+  "api get /api/session?"*) fail; echo "{\\"data\\":$sessions,\\"cursor\\":{}}" ;;
+  "api delete "* | "api post "*) fail ;;
   *) exit 1 ;;
 esac
 `,
@@ -399,6 +405,8 @@ test("remove: OpenCode's service lets go of the removed worktree (its reload fai
   assert.deepEqual(r.said, ["removed served"])
   assert.deepEqual(readFileSync(log, "utf8").split("\n").filter(Boolean), [
     "service status",
+    "api get /api/session?limit=1000", // no conversations there
+    "service status",
     "api get /api/debug/location",
     `api delete /api/debug/location?location%5Bdirectory%5D=${encodeURIComponent(join(project, "served"))}`,
   ])
@@ -406,10 +414,142 @@ test("remove: OpenCode's service lets go of the removed worktree (its reload fai
   r = ioIn(main, service(join(project, "served-too"), { FAKE_OPENCODE_FAIL: "1" }))
   await remove(kitWith(), r.io, ["served-too"])
   assert.deepEqual(r.said, [
+    "ade worktree rm: warning: could not list OpenCode's conversations: Error: boom",
     "removed served-too",
     "ade worktree rm: warning: could not list OpenCode's locations: Error: boom",
   ])
   assert.equal(existsSync(join(project, "served-too")), false)
+})
+
+// The stand-in's running service with these sessions, those named in
+// `running` running, and the calls it gets, from a log of its own.
+const serving = (sessions: object[], running: string[] = []) => {
+  const log = join(mkdtempSync(join(temp, "log-")), "opencode.log")
+  const env = {
+    FAKE_OPENCODE_URL: "http://127.0.0.1:4096",
+    FAKE_OPENCODE_SESSIONS: JSON.stringify(sessions),
+    FAKE_OPENCODE_ACTIVE: JSON.stringify(Object.fromEntries(running.map((id) => [id, { type: "running" }]))),
+    FAKE_OPENCODE_LOG: log,
+  }
+  const calls = () => (existsSync(log) ? readFileSync(log, "utf8").split("\n").filter(Boolean) : [])
+  return {
+    env,
+    calls,
+    moves: () =>
+      calls()
+        .filter((call) => call.startsWith("api post "))
+        .sort(),
+  }
+}
+const session = (id: string, directory: string, more: object = {}) => ({
+  id,
+  title: id,
+  location: { directory },
+  ...more,
+})
+const moved = (ids: string[], to: string) =>
+  ids.map((id) => `api post /api/session/${id}/move --data ${JSON.stringify({ directory: to })}`)
+
+test("remove: refused while a conversation there is running, -f or not; nothing is removed or moved", async () => {
+  const main = join(project, "main")
+  git(project, "worktree", "add", "-q", "-b", "busy", "busy", "main")
+  const busy = join(project, "busy")
+  const sessions = [
+    session("ses_plan", busy, { title: "Plan the move" }),
+    session("ses_task", busy, { parentID: "ses_plan" }), // its subagent's
+    session("ses_idle", join(busy, "sub")),
+    session("ses_main", main),
+  ]
+  let s = serving(sessions, ["ses_plan", "ses_task", "ses_main"])
+  for (const args of [["busy"], ["-f", "busy"]])
+    await assert.rejects(
+      remove(kitWith(), ioIn(main, s.env).io, args),
+      new Failed(
+        `ade worktree rm: busy has a running conversation ("Plan the move"); move it out first, then remove the worktree in a later step`,
+      ),
+    )
+  assert.ok(existsSync(busy))
+  assert.deepEqual(s.calls(), [
+    ...["service status", "api get /api/session?limit=1000", "api get /api/session/active"],
+    ...["service status", "api get /api/session?limit=1000", "api get /api/session/active"],
+  ])
+  s = serving([...sessions, session("ses_docs", busy, { title: "Write the docs" })], ["ses_plan", "ses_docs"])
+  await assert.rejects(
+    remove(kitWith(), ioIn(main, s.env).io, ["busy"]),
+    new Failed(
+      `ade worktree rm: busy has 2 running conversations ("Plan the move", "Write the docs"); move them out first, then remove the worktree in a later step`,
+    ),
+  )
+  assert.ok(existsSync(busy))
+})
+
+test("remove: once it is removed, its idle conversations move to the default branch's worktree; a failed removal moves nothing", async () => {
+  const main = join(project, "main")
+  const busy = join(project, "busy")
+  writeFileSync(join(busy, "draft.md"), "unsaved\n")
+  const sessions = [
+    session("ses_plan", busy),
+    session("ses_task", busy, { parentID: "ses_plan" }),
+    session("ses_idle", join(busy, "sub")),
+    session("ses_main", main),
+  ]
+  let s = serving(sessions, ["ses_main"])
+  let r = ioIn(main, s.env)
+  await assert.rejects(remove(kitWith(), r.io, ["busy"]), new Failed())
+  assert.ok(
+    r.said.some((said) => said.includes("modified or untracked files")),
+    r.said.join("\n"),
+  )
+  assert.deepEqual(s.moves(), [])
+  s = serving(sessions, ["ses_main"])
+  r = ioIn(main, s.env)
+  await remove(kitWith(), r.io, ["-f", "busy"])
+  assert.deepEqual(r.said, ["removed busy", "moved 2 conversations to main"]) // a subagent's counts with its own
+  assert.deepEqual(s.moves(), moved(["ses_idle", "ses_plan", "ses_task"], main))
+  // A stopped service is asked nothing more (opencode api would start one).
+  git(project, "worktree", "add", "-q", "-b", "quiet", "quiet", "main")
+  s = serving([session("ses_quiet", join(project, "quiet"))], ["ses_quiet"])
+  r = ioIn(main, { ...s.env, FAKE_OPENCODE_URL: "" })
+  await remove(kitWith(), r.io, ["quiet"])
+  assert.deepEqual(r.said, ["removed quiet"])
+  assert.deepEqual(s.calls(), ["service status", "service status"])
+})
+
+test("remove: with the default branch's worktree removed, its conversations move to the project folder", async () => {
+  const solo = join(temp, "solo")
+  git(temp, "clone", "-q", "--bare", origin, join(solo, ".bare"))
+  writeFileSync(join(solo, ".git"), "gitdir: ./.bare\n")
+  git(solo, "config", "remote.origin.fetch", "+refs/heads/*:refs/remotes/origin/*")
+  git(solo, "fetch", "-q", "origin")
+  git(solo, "remote", "set-head", "origin", "--auto")
+  git(solo, "worktree", "add", "-q", "main", "main")
+  const s = serving([session("ses_here", join(solo, "main"))])
+  // From the worktree itself, as OpenCode's worktree_remove does.
+  const r = ioIn(join(solo, "main"), s.env)
+  await remove(kitWith(), r.io, ["main"])
+  assert.deepEqual(r.said, ["removed main", "moved a conversation to solo"])
+  assert.deepEqual(s.moves(), moved(["ses_here"], solo))
+})
+
+test("prune: each worktree is removed as rm does: not while a conversation there is running", async () => {
+  const main = join(project, "main")
+  git(project, "worktree", "add", "-q", "-b", "landed", "landed", "main")
+  const landed = join(project, "landed")
+  git(landed, "push", "-q", "-u", "origin", "landed")
+  git(origin, "branch", "-q", "-D", "landed")
+  let s = serving([session("ses_land", landed, { title: "Land it" })], ["ses_land"])
+  let r = ioIn(main, s.env)
+  await assert.rejects(prune(kitWith(), r.io, ["-y"]), new Failed())
+  assert.equal(
+    r.said.at(-1),
+    `ade worktree rm: landed has a running conversation ("Land it"); move it out first, then remove the worktree in a later step`,
+  )
+  assert.ok(existsSync(landed))
+  s = serving([session("ses_land", landed, { title: "Land it" })])
+  r = ioIn(main, s.env)
+  await prune(kitWith(), r.io, ["-y", "-n"])
+  assert.deepEqual(r.said.slice(-2), ["removed landed", "moved a conversation to main"])
+  assert.deepEqual(s.moves(), moved(["ses_land"], main))
 })
 
 // A kit whose config has these worktree options.

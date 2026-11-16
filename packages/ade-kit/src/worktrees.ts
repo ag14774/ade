@@ -10,7 +10,7 @@ import { builtins } from "./builtins.ts"
 import { onPath } from "./editor.ts"
 import { Failed, line, loud, query, worktreeRecords } from "./git.ts"
 import { labelOf, loadAgent, loadLayout } from "./load.ts"
-import type { Kit, Layout, Repository, WorktreeIo } from "./types.ts"
+import type { Conversation, Kit, Layout, Repository, WorktreeIo } from "./types.ts"
 import { isDirectory, multiplexerAt, outside, realPath } from "./workspace.ts"
 
 type Env = Record<string, string | undefined>
@@ -353,10 +353,53 @@ async function tabsOf(kit: Kit, io: Io, dir: string) {
   )
 }
 
+// The agent's conversations in the worktree `dir` (see Agent's
+// conversationsIn); none, with a warning, when the agent can't be asked.
+async function conversationsIn(kit: Kit, io: Io, dir: string): Promise<Conversation[]> {
+  try {
+    return (await (await loadAgent(kit)).conversationsIn?.(dir, io.env)) ?? []
+  } catch (error) {
+    io.say(`${COMMAND.rm}: warning: ${message(error)}`)
+    return []
+  }
+}
+
+// The conversations of `list` that are not a subagent's of another one there:
+// a conversation and its subagents' count as one.
+const topLevel = (list: Conversation[]) => list.filter((c) => !c.parent || !list.some((p) => p.id === c.parent))
+
+const plural = (count: number, word: string) => `${count === 1 ? "a" : count} ${word}${count === 1 ? "" : "s"}`
+
+// Where the conversations of the worktree `dir` go once it is removed: the
+// default branch's worktree, else (it is the one removed, or there is none)
+// the repository's folder.
+async function refuge(kit: Kit, io: Io, repo: Repository, dir: string) {
+  const main = await defaultWorktree(kit, io, repo)
+  return main && isDirectory(main) && realPath(main) !== realPath(dir) ? main : repo.root
+}
+
+// Move the conversations of a removed worktree to `dir` (see Agent's
+// moveConversations), and say so; a failure is only a warning.
+async function moveOut(kit: Kit, io: Io, conversations: Conversation[], dir: string) {
+  try {
+    const agent = await loadAgent(kit)
+    if (!agent.moveConversations) return
+    const ids = conversations.map((c) => c.id)
+    await agent.moveConversations(ids, dir, io.env)
+    io.say(`moved ${plural(topLevel(conversations).length, "conversation")} to ${basename(dir)}`)
+  } catch (error) {
+    io.say(`${COMMAND.rm}: warning: ${message(error)}`)
+  }
+}
+
 // rm: remove the worktree of a branch, folder name or path (-f: even with
-// uncommitted changes), then close the tabs working in it, except yours, and
-// let the agent forget it (OpenCode's service: its location, on which the
-// service's reload would fail).
+// uncommitted changes), then move the agent's conversations there to the
+// default branch's worktree (they would fail in a folder that is gone), close
+// the tabs working in it, except yours, and let the agent forget it
+// (OpenCode's service: its location, on which the service's reload would
+// fail). Refused, -f or not, while one of its conversations is running: it
+// would fail before a move could reach it. An agent removing its own
+// worktree moves its conversation out first, and removes it in a later step.
 export async function remove(kit: Kit, io: Io, args: string[]) {
   const force = args[0] === "-f" || args[0] === "--force"
   const arg = args[force ? 1 : 0]
@@ -367,12 +410,25 @@ export async function remove(kit: Kit, io: Io, args: string[]) {
   if (target === "ambiguous")
     throw new Failed(`${COMMAND.rm}: '${arg}' matches both a branch and a worktree directory; use the absolute path`)
   if (!target) throw new Failed(`${COMMAND.rm}: no worktree found for '${arg}'`)
+  const conversations = await conversationsIn(kit, io, target)
+  const running = topLevel(conversations.filter((c) => c.running))
+  if (running.length) {
+    const titles = running.map((c) => JSON.stringify(c.title || c.id)).join(", ")
+    const them = running.length === 1 ? "it" : "them"
+    throw new Failed(
+      `${COMMAND.rm}: ${basename(target)} has ${plural(running.length, "running conversation")} (${titles}); move ${them} out first, then remove the worktree in a later step`,
+    )
+  }
+  // Where they go, found now: the caller's folder may be the worktree, and
+  // git can't run there once it is gone.
+  const destination = conversations.length ? await refuge(kit, io, repo, target) : undefined
   // Their shells would be left in a deleted folder. Found now: once it is
   // removed, their panes' folders are gone.
   const found = await tabsOf(kit, io, target)
   if (!(await loud(kit, io, ["worktree", "remove", ...(force ? ["--force"] : []), target], repo.root)))
     throw new Failed()
   io.say(`removed ${basename(target)}`)
+  if (destination) await moveOut(kit, io, conversations, destination)
   if (found.length)
     await closeTabs(kit, target, found, { env: io.env, cwd: io.cwd }, io.say).catch((error) =>
       io.say(`${COMMAND.rm}: ${message(error)}`),
