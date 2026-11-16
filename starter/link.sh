@@ -16,7 +16,6 @@ STARTER=$ROOT/starter
 
 install_ade
 
-link "$STARTER/bin/opencode-pane" "$BIN/opencode-pane"
 for f in config.kdl layouts/dev.kdl yazi-picker.sh resurrect-command.sh; do
   link "$STARTER/zellij/$f" "$CONFIG/zellij/$f"
 done
@@ -32,7 +31,8 @@ elif ! grep -q -- '-opencode.notifications' "$cli"; then
   notes+=("add \"-opencode.notifications\" to \"plugins\" in $cli, so opencode-ade-status plays the sounds instead of OpenCode")
 fi
 
-grep -qsF "$STARTER/shell/ade.zsh" "$HOME/.zshrc" ||
-  notes+=("add to ~/.zshrc, after compinit: source $STARTER/shell/ade.zsh")
+grep -qsF "$STARTER/shell/ade.sh" "$HOME/.zshrc" "$HOME/.bashrc" ||
+  notes+=("for wt and the other short names, add to your shell's rc file (~/.zshrc, ~/.bashrc): . $STARTER/shell/ade.sh")
+notes+=("grant the top bar its permission once: inside Zellij, run zellij plugin -f -- \"<url>\" with the URL in $STARTER/zellij/layouts/dev.kdl, press y, and close that pane")
 
 finish

@@ -138,8 +138,8 @@ ln -s ../packages/ade-kit "$TMP/src/node_modules/ade-kit"
 ln -s "$TMP/src/packages/opencode-ade" "$config/plugins/ade"
 ln -s "$TMP/src/packages/opencode-ade-status" "$config/plugins/ade-status"
 ln -s "$TMP/src/packages/opencode-ade-worktrees" "$config/plugins/ade-worktrees"
-# This checkout's ADE config (OpenCode through opencode-pane); the sandbox has
-# this checkout's ade and opencode-pane first on PATH, as installed.
+# This checkout's ADE config; the sandbox has this checkout's ade first on
+# PATH, as installed.
 mkdir -p "$TMP/oc/config/ade"
 cp "$ROOT/starter/ade/config.json" "$TMP/oc/config/ade/"
 export XDG_DATA_HOME=$TMP/oc/data XDG_STATE_HOME=$TMP/oc/state XDG_CACHE_HOME=$TMP/oc/cache \
@@ -217,8 +217,8 @@ command_of() { # $1 = tab: what its opencode pane runs
   zj list-panes --json 2>/dev/null | jq -r --argjson t "$1" \
     '[.[] | select(.is_plugin == false and .tab_id == $t and .title == "opencode")][0].terminal_command // empty'
 }
-[[ $(command_of "$(tab_in "$TMP/proj/feat-x")") == *opencode-pane* ]] \
-  || fail "the delegated tab's OpenCode should run through opencode-pane: $(command_of "$(tab_in "$TMP/proj/feat-x")")"
+[[ $(command_of "$(tab_in "$TMP/proj/feat-x")") == *"/ade agent"* ]] \
+  || fail "the delegated tab's OpenCode should run through ade agent: $(command_of "$(tab_in "$TMP/proj/feat-x")")"
 
 step "the /delegate command is available"
 oc_cli api GET "/api/command?location%5Bdirectory%5D=$(uri "$TMP/proj/main")" 2>/dev/null \

@@ -62,13 +62,13 @@ layout {
         plugin location="zellij:status-bar"
     }
     // CONTENT: main shell (left ~70%) | opencode (right 30%).
-    // opencode-pane (starter/bin, linked by link.sh) keeps OpenCode restorable
-    // after a restart; without it on PATH, plain OpenCode starts.
+    // `ade agent` runs the agent so that a restored pane carries on with its
+    // conversation (sh, for $HOME: Zellij doesn't expand it).
     pane_template name="workspace" split_direction="vertical" {
         pane name="main" focus=true
         pane name="opencode" size="30%" {
             command "sh"
-            args "-c" "command -v opencode-pane >/dev/null && exec opencode-pane; exec \"${SHELL:-sh}\" -i -c opencode"
+            args "-c" "exec \"$HOME/.local/bin/ade\" agent"
             close_on_exit true
         }
     }

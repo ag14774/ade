@@ -12,7 +12,8 @@
 // gone fails on its next step, and every prompt after that; one that isn't
 // running can be moved elsewhere at any time (moveConversations), while a
 // running one is moved only at the end of its current step. Only a running
-// service is asked: `opencode api` would start one.
+// service is asked: `opencode api` would start one. resume is the exception:
+// the agent it answers for is about to start the service anyway.
 import { realpathSync, statSync } from "node:fs"
 import type { Agent, Conversation, Kit, RunResult } from "../types.ts"
 
@@ -86,6 +87,20 @@ export default (kit: Kit) => {
     }),
     // OpenCode marks the commands its agents run.
     ranByAgent: (env) => Boolean(env.OPENCODE_TERMINAL),
+    // --continue, when the folder has a top-level conversation to carry on.
+    resume: async (dir, env) => {
+      const path = `${SESSIONS}?limit=1&order=desc&parentID=null&directory=${encodeURIComponent(dir)}`
+      const result = await opencode(["api", "get", path], env)
+      const answer = parsed(result.stdout)
+      return result.ok && isPage(answer) && answer.data.length ? [...(command as string[]), "--continue"] : undefined
+    },
+    // The service reloads its config and plugins (`opencode reload`); a
+    // stopped one has nothing loaded.
+    reload: async (env) => {
+      if (!(await serving(env))) return
+      const reloaded = await opencode(["reload"], env)
+      if (!reloaded.ok) throw new Error(`OpenCode could not reload: ${why(reloaded)}`)
+    },
     forgetGone: async (env) => {
       if (!(await serving(env))) return []
       const locations = await get(LOCATIONS, env, Array.isArray, "list OpenCode's locations")

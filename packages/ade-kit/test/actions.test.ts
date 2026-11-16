@@ -7,6 +7,7 @@ import { test } from "node:test"
 import type { Terminal } from "../src/actions.ts"
 import {
   ADE,
+  agentCommand,
   fileRef,
   open,
   pastes,
@@ -447,9 +448,12 @@ const withTabs = (panes: Pane[], o: { agent?: boolean; fail?: "openTab" | "start
   ;(globalThis as { recorder?: Multiplexer }).recorder = recorder
   return calls
 }
-writeFileSync(join(temp, "bin", "opencode-pane"), "#!/bin/sh\n")
-chmodSync(join(temp, "bin", "opencode-pane"), 0o755)
-const viaPane = { opencode: { command: ["opencode-pane"] } } as Partial<Config>
+// The agent's program and `ade` on PATH: agent panes run `ade agent`.
+for (const program of ["opencode", "ade"]) {
+  writeFileSync(join(temp, "bin", program), "#!/bin/sh\n")
+  chmodSync(join(temp, "bin", program), 0o755)
+}
+const ade = join(temp, "bin", "ade")
 // A script with only the session (ade worktree's callers may not have a pane).
 const scripted = { env: { FAKE_SESSION: "1", PATH: process.env.PATH }, cwd: temp }
 const told = () => {
@@ -484,11 +488,11 @@ test("workspace: a new tab, in front or in the background, also for a worktree w
   assert.deepEqual(messages, ["opened tab inner in the background"])
 })
 
-test("workspace: with a conversation or prompt, the new tab's agent starts on them, its program found on PATH", async () => {
+test("workspace: with a conversation or prompt, the new tab's agent starts on them, through `ade agent` on PATH", async () => {
   const calls = withTabs([])
   const { messages, tell } = told()
-  await workspace(kitWith(viaPane), { dir: inner, focus: false, session: "ses_1", prompt: "-go on" }, scripted, tell)
-  const argv = [join(temp, "bin", "opencode-pane"), "--session", "ses_1", "--prompt", "-go on"]
+  await workspace(kitWith(), { dir: inner, focus: false, session: "ses_1", prompt: "-go on" }, scripted, tell)
+  const argv = [ade, "agent", "--session", "ses_1", "--prompt", "-go on"]
   assert.deepEqual(calls, [["openTab", { dir: inner, focus: false, agent: argv }]])
   assert.deepEqual(messages, ["opened tab inner in the background", "OpenCode in tab inner is working on the prompt"])
 })
@@ -496,7 +500,7 @@ test("workspace: with a conversation or prompt, the new tab's agent starts on th
 test("workspace refuses a conversation or prompt for a worktree with a tab, and an agent it can't find", async () => {
   const calls = withTabs(nested)
   await assert.rejects(
-    workspace(kitWith(viaPane), { dir: inner, focus: false, prompt: "go" }, scripted),
+    workspace(kitWith(), { dir: inner, focus: false, prompt: "go" }, scripted),
     /^Error: inner already has a tab; send the prompt to its OpenCode instead$/,
   )
   await assert.rejects(
@@ -508,14 +512,15 @@ test("workspace refuses a conversation or prompt for a worktree with a tab, and 
     /^Error: OpenCode executable not found \(tried opencode\)$/,
   )
   assert.deepEqual(calls, [])
-  // A program given with its path is used as it is.
+  // A program given with its path isn't looked for; without `ade` on PATH,
+  // the panes run this checkout's.
   const given = withTabs([])
   await workspace(
     kitWith({ opencode: { command: ["/opt/oc"] } } as Partial<Config>),
     { dir: inner, focus: true, prompt: "go" },
-    scripted,
+    { ...scripted, env: { FAKE_SESSION: "1", PATH: "/nowhere" } },
   )
-  assert.deepEqual((given[0][1] as { agent: string[] }).agent, ["/opt/oc", "--prompt", "go"])
+  assert.deepEqual((given[0][1] as { agent: string[] }).agent, [ADE, "agent", "--prompt", "go"])
 })
 
 test("workspace says what failed: no tab, no agent pane in it, the agent not started", async () => {
@@ -527,13 +532,13 @@ test("workspace says what failed: no tab, no agent pane in it, the agent not sta
   withTabs([], { agent: false })
   const { messages, tell } = told()
   await assert.rejects(
-    workspace(kitWith(viaPane), { dir: inner, focus: false, prompt: "go" }, scripted, tell),
+    workspace(kitWith(), { dir: inner, focus: false, prompt: "go" }, scripted, tell),
     /^Error: no opencode pane in tab inner; prompt not sent \(the tab stays open\)$/,
   )
   assert.deepEqual(messages, ["opened tab inner in the background"])
   withTabs([], { fail: "start" })
   await assert.rejects(
-    workspace(kitWith(viaPane), { dir: inner, focus: false, prompt: "go" }, scripted),
+    workspace(kitWith(), { dir: inner, focus: false, prompt: "go" }, scripted),
     /^Error: could not start OpenCode with the prompt in tab inner$/,
   )
 })
@@ -615,24 +620,85 @@ test("where: the folder of the pane you were in, else the caller's", async () =>
   assert.equal(await where(kitWith(), from("9", "/")), elsewhere)
 })
 
-test("restartAgent: the configured agent in place of the tab's agent pane, in the folder; focus stays", async () => {
-  const command = join(temp, "bin", "opencode-pane")
-  writeFileSync(command, "#!/bin/sh\n")
-  chmodSync(command, 0o755)
-  const viaPane = { opencode: { command: ["opencode-pane"] } } as Partial<Config>
-  const withPath = (pane: string) => ({ env: { FAKE_PANE: pane, PATH: process.env.PATH }, cwd: dir })
+const withPath = (pane: string) => ({ env: { FAKE_PANE: pane, PATH: process.env.PATH }, cwd: dir })
+const noPane = { env: { PATH: process.env.PATH }, cwd: dir }
+
+test("restartAgent: `ade agent` in place of the tab's agent pane, in the folder; focus stays", async () => {
   let calls = record()
-  await restartAgent(kitWith(viaPane), temp, withPath("1"))
+  await restartAgent(kitWith(), temp, withPath("1"))
   assert.deepEqual(calls, [
-    ["start", { tab: "1", role: "agent", argv: [command], focus: false, replace: "5", cwd: temp }],
+    ["start", { tab: "1", role: "agent", argv: [ade, "agent"], focus: false, replace: "5", cwd: temp }],
   ])
   // A tab without an agent pane gets a new one; focus comes back to you.
   calls = record()
-  await restartAgent(kitWith(viaPane), ".", withPath("3"))
+  await restartAgent(kitWith(), ".", withPath("3"))
   assert.deepEqual(calls, [
-    ["start", { tab: "2", role: "agent", argv: [command], focus: true, cwd: dir }],
+    ["start", { tab: "2", role: "agent", argv: [ade, "agent"], focus: true, cwd: dir }],
     ["focus", "3"],
   ])
-  await assert.rejects(restartAgent(kitWith(viaPane), "missing", withPath("1")), /is not a folder$/)
-  await assert.rejects(restartAgent(kitWith(viaPane), ".", from(undefined)), /^Error: not inside Fake$/)
+  await assert.rejects(restartAgent(kitWith(), "missing", withPath("1")), /is not a folder$/)
+  await assert.rejects(restartAgent(kitWith(), ".", noPane), /^Error: not inside Fake$/)
+})
+
+// An agent of your own that records what it is asked, and carries on with a
+// conversation only in a folder named "talked".
+const recordingAgent = join(temp, "recording-agent.ts")
+writeFileSync(
+  recordingAgent,
+  `export default (kit) => ({
+    ...kit.builtin.agent("opencode"),
+    forgetGone: async () => (globalThis.asked.push("forgetGone"), []),
+    reload: async () => {
+      globalThis.asked.push("reload")
+      if (globalThis.reloadFails) throw new Error("no reload")
+    },
+    resume: async (dir) => (dir.endsWith("/talked") ? ["opencode", "--continue"] : undefined),
+  })`,
+)
+const asking = (reloadFails = false) => {
+  const asked: string[] = []
+  Object.assign(globalThis, { asked, reloadFails })
+  return asked
+}
+
+test("restartAgent --reload: the agent forgets and reloads first; if the reload fails, the agent stays", async () => {
+  let asked = asking()
+  let calls = record()
+  await restartAgent(kitWith({ agent: recordingAgent }), ".", withPath("1"), { reload: true })
+  assert.deepEqual(asked, ["forgetGone", "reload"])
+  assert.equal(calls.length, 1)
+  asked = asking(true)
+  calls = record()
+  await assert.rejects(
+    restartAgent(kitWith({ agent: recordingAgent }), ".", withPath("1"), { reload: true }),
+    /^Error: no reload$/,
+  )
+  assert.deepEqual([asked, calls], [["forgetGone", "reload"], []])
+  // Outside a tab, the agent still reloads (for every pane); the restart is refused.
+  asked = asking()
+  await assert.rejects(
+    restartAgent(kitWith({ agent: recordingAgent }), ".", noPane, { reload: true }),
+    /^Error: not inside Fake$/,
+  )
+  assert.deepEqual(asked, ["forgetGone", "reload"])
+})
+
+test("agentCommand: the agent on the start given; without one, carrying on where it can, else afresh", async () => {
+  const opencode = join(temp, "bin", "opencode")
+  const kit = kitWith({ agent: recordingAgent })
+  const caller = (cwd: string) => ({ env: { PATH: process.env.PATH }, cwd })
+  assert.deepEqual(await agentCommand(kit, { session: "ses_1", prompt: "go" }, caller("/w/talked")), [
+    opencode,
+    "--session",
+    "ses_1",
+    "--prompt",
+    "go",
+  ])
+  assert.deepEqual(await agentCommand(kit, undefined, caller("/w/talked")), [opencode, "--continue"])
+  assert.deepEqual(await agentCommand(kit, undefined, caller("/w/new")), [opencode])
+  assert.deepEqual(await agentCommand(kit, {}, caller("/w/talked")), [opencode])
+  await assert.rejects(
+    agentCommand(kit, {}, { env: { PATH: "/nowhere" }, cwd: "/w" }),
+    /^Error: OpenCode executable not found \(tried opencode\)$/,
+  )
 })

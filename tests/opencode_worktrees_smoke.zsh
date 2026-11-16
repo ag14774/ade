@@ -7,7 +7,7 @@
 # running conversation stays; once removed, its conversations move to main and
 # carry on there. The service lets go of the folders that are gone (its reload
 # fails on them): those removed by OpenCode or `ade worktree rm`, and those
-# deleted by hand, before ocreload reloads it. OpenCode runs a private
+# deleted by hand, before `ade restart-agent --reload` reloads it. OpenCode runs a private
 # background service (its own HOME, XDG folders and port; stopped by its pid),
 # with this checkout's packages; no Zellij, no model calls: a conversation
 # runs while it waits on a model server of the test's that never answers.
@@ -206,16 +206,15 @@ out=$(cd "$P/main" && node "$ade" worktree rm chat 2>&1) || fail "ade worktree r
 [[ $out == *"moved a conversation to main"* && $(folder_of "$chat") == "$P/main" ]] \
   || fail "ade worktree rm should move chat's conversation to main: $out"
 
-# ocreload's opencode is the test's: HOME and the XDG folders are the test's,
-# with the private port. Its restart-agent needs Zellij, which is not here.
-step "a worktree deleted by hand: ocreload lets go of it, then the reload works"
+# Its opencode is the test's: HOME and the XDG folders are the test's, with
+# the private port. The restart itself needs Zellij, which is not here: the
+# refusal comes only once the reload worked.
+step "a worktree deleted by hand: ade restart-agent --reload lets go of it, then the reload works"
 location "$dir" >/dev/null
 rm -rf "$dir"
-mkdir -p "$TMP/ade-bin" && ln -s "$ade" "$TMP/ade-bin/ade"
-source "$ROOT/starter/shell/ade.zsh"
-out=$(cd "$P/main" && PATH="$TMP/ade-bin:$PATH" ocreload 2>&1)
-[[ $out == *"Configuration reloaded"* && $out == *"ade restart-agent: not inside Zellij"* ]] \
-  || fail "ocreload should reload the service, then try to restart the agent: $out"
+out=$(cd "$P/main" && node "$ade" restart-agent --reload 2>&1)
+[[ $out == "ade restart-agent: not inside Zellij" ]] \
+  || fail "restart-agent --reload should reload the service, then try to restart the agent: $out"
 ! loaded "$dir" || fail "the service should have let go of $dir"
 
 print "opencode worktrees smoke test: ok"

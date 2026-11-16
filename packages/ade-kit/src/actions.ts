@@ -26,7 +26,8 @@ import {
 type Env = Record<string, string | undefined>
 export type Caller = { env: Env; cwd: string }
 
-// The `ade` command (for the reviewer's "open this file" key).
+// This checkout's `ade` command (the reviewer's "open this file" key, agent
+// panes).
 export const ADE = fileURLToPath(new URL("./cli.ts", import.meta.url))
 
 // FILE[:LINE[:COLUMN]], relative to `cwd`. A file whose own name ends that
@@ -96,15 +97,40 @@ export type WorkspaceOptions = {
   prompt?: string // what a new tab's agent starts on
 }
 
-// The agent's command for a pane, its program found on the caller's PATH (the
-// multiplexer may start it with another).
-function agentCommand(agent: Agent, o: { session?: string; prompt?: string }, env: Env) {
-  const [program, ...args] = agent.start(o)
+type Start = { session?: string; prompt?: string }
+
+// A command of the agent's, its program found on PATH.
+function onPathOf(agent: Agent, [program, ...args]: string[], env: Env) {
   if (!program) throw new Error(`${labelOf(agent)} has no command`)
   if (program.includes("/")) return [program, ...args]
   const found = onPath([program], env.PATH ?? "")
   if (!found) throw new Error(`${labelOf(agent)} executable not found (tried ${program})`)
   return [found, ...args]
+}
+
+// `ade agent`'s options for a start on a conversation or a prompt.
+export const agentOptions = (o: Start) => [
+  ...(o.session ? ["--session", o.session] : []),
+  ...(o.prompt ? ["--prompt", o.prompt] : []),
+]
+
+// The command for an agent pane: `ade agent`, so that the pane carries on
+// with its conversation once the multiplexer restores it. `ade` as found on
+// PATH (its link, which outlives a move of the checkout, for the sessions a
+// multiplexer saves), else this checkout's. Fails here, not in the pane, when
+// the agent's program is missing.
+function paneCommand(agent: Agent, o: Start, env: Env) {
+  onPathOf(agent, agent.start(o), env)
+  return [onPath(["ade"], env.PATH ?? "") ?? ADE, "agent", ...agentOptions(o)]
+}
+
+// What `ade agent` runs: the agent starting on the conversation or prompt in
+// `start`; without a start (a pane the multiplexer restored), the agent
+// carrying on with the latest conversation in the caller's folder, if it can.
+export async function agentCommand(kit: Kit, start: Start | undefined, caller: Caller) {
+  const agent = await loadAgent(kit)
+  const resumed = start ? undefined : await agent.resume?.(caller.cwd, caller.env)
+  return onPathOf(agent, resumed ?? agent.start(start ?? {}), caller.env)
 }
 
 // Go to the tab working in the worktree `dir`, or open a tab there with the
@@ -124,7 +150,7 @@ export async function workspace(
   const name = basename(given)
   const starting = { ...(o.session ? { session: o.session } : {}), ...(o.prompt ? { prompt: o.prompt } : {}) }
   const agent = o.session || o.prompt ? await loadAgent(kit) : undefined
-  const argv = agent && agentCommand(agent, starting, caller.env)
+  const argv = agent && paneCommand(agent, starting, caller.env)
   const [found] = tabsIn(await mux.panes(), dir, await worktreesOf(kit, dir))
   if (found) {
     if (agent) throw new Error(`${name} already has a tab; send the prompt to its ${labelOf(agent)} instead`)
@@ -275,13 +301,20 @@ export async function where(kit: Kit, caller: Caller) {
 }
 
 // Replace the agent of the caller's tab with a fresh one started in `dir` (a
-// new agent pane when the tab has none). Focus stays where it is.
-export async function restartAgent(kit: Kit, dir: string, caller: Caller) {
+// new agent pane when the tab has none). Focus stays where it is. With
+// `reload`, the agent first forgets the folders that are gone and reloads its
+// configuration and plugins (see Agent), which is done for every pane even
+// outside a tab; if that fails, the agent stays.
+export async function restartAgent(kit: Kit, dir: string, caller: Caller, o: { reload?: boolean } = {}) {
   const agent = await loadAgent(kit)
   const cwd = resolve(caller.cwd, dir)
   if (!isDirectory(cwd)) throw new Error(`${cwd} is not a folder`)
+  const argv = paneCommand(agent, {}, caller.env)
+  if (o.reload) {
+    await agent.forgetGone?.(caller.env)
+    await agent.reload?.(caller.env)
+  }
   const { where: at, mux, panes, tab } = await callerTab(kit, caller, `${labelOf(agent)} runs in a pane`)
-  const argv = agentCommand(agent, {}, caller.env)
   const pane = paneWith(panes, tab, "agent")
   if (pane) return void (await mux.start({ tab, role: "agent", argv, focus: false, replace: pane.id, cwd }))
   await mux.start({ tab, role: "agent", argv, focus: true, cwd })

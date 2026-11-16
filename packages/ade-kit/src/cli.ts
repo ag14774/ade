@@ -7,10 +7,10 @@
 import { spawn } from "node:child_process"
 import { once } from "node:events"
 import { appendFileSync } from "node:fs"
-import { homedir } from "node:os"
+import { constants, homedir } from "node:os"
 import { createInterface } from "node:readline"
 import type { Terminal } from "./actions.ts"
-import { forgetGone, open, restartAgent, review, send, where } from "./actions.ts"
+import { agentCommand, forgetGone, open, restartAgent, review, send, where } from "./actions.ts"
 import { makeKit, run } from "./kit.ts"
 import { scopeOf, scopeWords } from "./review.ts"
 import type { RunOptions } from "./types.ts"
@@ -30,8 +30,13 @@ const USAGE = `usage: ade open FILE[:LINE[:COLUMN]]...
          the review, your comments go to this tab's agent (filled in, or sent: review.deliver)
        ade review --scope
          print what a review here covers: -r BASE..HEAD (commits), -w (uncommitted changes)
-       ade restart-agent [DIR]
-         replace this tab's agent with a fresh one started in DIR (default: here); focus stays
+       ade agent [--session ID] [--prompt TEXT]
+         run the configured agent here, on the conversation or the prompt given: the command of
+         an agent pane. It runs again as \`ade agent --resume\`, the command a multiplexer saves,
+         which carries on with this folder's latest conversation (never sends the prompt again)
+       ade restart-agent [--reload] [DIR]
+         replace this tab's agent with a fresh one started in DIR (default: here); focus stays.
+         --reload: the agent first forgets folders that are gone and reloads its configuration
        ade forget-gone
          let the agent forget folders that no longer exist, and print them (OpenCode: its
          service's locations, on which its reload fails); ade worktree rm does it too
@@ -96,6 +101,42 @@ const traced = (log: string) => async (argv: string[], o?: RunOptions) => {
   return result
 }
 
+// `ade agent`'s start (a conversation, a prompt, or neither), handed to the
+// `ade agent --resume` it becomes, in its environment only.
+const START = "ADE_AGENT_START"
+
+function agentStart(args: string[]) {
+  const start: { session?: string; prompt?: string } = {}
+  for (let i = 0; i < args.length; i += 2) {
+    const [option, value] = [args[i], args[i + 1]]
+    if ((option !== "--session" && option !== "--prompt") || value === undefined) throw new UsageError()
+    if (value) start[option === "--session" ? "session" : "prompt"] = value
+  }
+  return start
+}
+
+function startOf(text: string) {
+  const given = JSON.parse(text) as Record<string, unknown> | null
+  const value = (key: string) => (typeof given?.[key] === "string" && given[key] ? { [key]: given[key] } : {})
+  return { ...value("session"), ...value("prompt") } as { session?: string; prompt?: string }
+}
+
+// Run the agent in this terminal as its parent, until it ends: the
+// multiplexer records this process (`ade agent --resume`) as the pane's
+// command. Ctrl-C and the like reach the agent, which shares the terminal.
+const runHere = (argv: string[], env: NodeJS.ProcessEnv) =>
+  new Promise<number>((done) => {
+    for (const signal of ["SIGINT", "SIGQUIT", "SIGTSTP"] as const) process.on(signal, () => {})
+    const [command, ...args] = argv
+    const child = spawn(command, args, { stdio: "inherit", env })
+    for (const signal of ["SIGTERM", "SIGHUP"] as const) process.on(signal, () => child.kill(signal))
+    child.on("error", (error) => {
+      process.stderr.write(`ade agent: ${error.message}\n`)
+      done(1)
+    })
+    child.on("exit", (code, signal) => done(code ?? 128 + (signal ? constants.signals[signal] : 0)))
+  })
+
 // The caller's folder. When it is gone (ade worktree rm run from inside the
 // worktree it removes), its path still resolves the arguments, and the commands ade runs
 // start in the home folder.
@@ -139,9 +180,26 @@ async function main(command: string | undefined, args: string[]) {
       if (args.length) throw new UsageError()
       return review(kit(), caller, terminal)
     }
-    case "restart-agent":
-      if (args.length > 1) throw new UsageError()
-      return restartAgent(kit(), args[0] ?? caller.cwd, caller)
+    case "agent": {
+      if (args.length !== 1 || args[0] !== "--resume") {
+        // Again, as `ade agent --resume`: a multiplexer that saves the pane's
+        // command line restarts it carrying on, never with the prompt again.
+        const start = JSON.stringify(agentStart(args))
+        const again = [process.execPath, ...process.execArgv, process.argv[1], "agent", "--resume"]
+        if (!process.execve) throw new Error("needs Node's process.execve (a POSIX system)")
+        process.execve(process.execPath, again, { ...process.env, [START]: start } as Record<string, string>)
+      }
+      const { [START]: given, ...rest } = env
+      const start = given === undefined ? undefined : startOf(given)
+      const argv = await agentCommand(kit(), start, { env: rest, cwd: caller.cwd })
+      process.exit(await runHere(argv, rest))
+    }
+    case "restart-agent": {
+      const reload = args[0] === "--reload"
+      const rest = reload ? args.slice(1) : args
+      if (rest.length > 1) throw new UsageError()
+      return restartAgent(kit(), rest[0] ?? caller.cwd, caller, { reload })
+    }
     case "forget-gone":
       if (args.length) throw new UsageError()
       for (const dir of await forgetGone(kit(), caller)) process.stdout.write(`${dir}\n`)

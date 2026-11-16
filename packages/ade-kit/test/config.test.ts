@@ -45,7 +45,7 @@ test("settings merge into the defaults key by key, and other sections are kept",
   const settings = {
     worktrees: { base: "origin/develop" },
     zellij: { panes: { agent: "claude" } },
-    opencode: { command: ["opencode-pane"] },
+    opencode: { command: ["oc-wrapper"] },
   }
   const config = readConfig({ XDG_CONFIG_HOME: configHome(JSON.stringify(settings)) })
   assert.deepEqual(config.worktrees, {
@@ -55,7 +55,7 @@ test("settings merge into the defaults key by key, and other sections are kept",
   })
   assert.deepEqual(config.zellij, { panes: { agent: "claude" } })
   assert.equal(config.multiplexer, "zellij")
-  assert.deepEqual(config.opencode, { command: ["opencode-pane"] })
+  assert.deepEqual(config.opencode, { command: ["oc-wrapper"] })
 })
 
 test("a broken config file is refused, naming the file and the problem", () => {

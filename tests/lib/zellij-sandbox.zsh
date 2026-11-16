@@ -22,8 +22,9 @@
 #   The config under test, each settable before sourcing:
 #   SANDBOX_CONFIG                   folders for sandbox_config (default: this
 #                                    checkout's starter/)
-#   SANDBOX_BIN                      commands linked into ~/.local/bin, besides
-#                                    this checkout's ade (default: starter/bin)
+#   SANDBOX_BIN                      a folder of commands linked into
+#                                    ~/.local/bin, besides this checkout's ade
+#                                    (default: none)
 #   SANDBOX_LAYOUT                   the tab layout with the bar (default:
 #                                    $SANDBOX_CONFIG/zellij/layouts/dev.kdl)
 #
@@ -51,7 +52,7 @@
 #                                    servers, remove the socket dir
 
 SANDBOX_ROOT=${${(%):-%x}:A:h:h:h}
-: ${SANDBOX_CONFIG:=$SANDBOX_ROOT/starter} ${SANDBOX_BIN:=$SANDBOX_ROOT/starter/bin}
+: ${SANDBOX_CONFIG:=$SANDBOX_ROOT/starter} ${SANDBOX_BIN:=}
 : ${SANDBOX_LAYOUT:=$SANDBOX_CONFIG/zellij/layouts/dev.kdl}
 
 # The layout's bar, downloaded once per release into a cache of the tests' own
@@ -95,7 +96,7 @@ sandbox_init() { # $1 = the test's Zellij config folder (becomes ~/.config/zelli
   : > "$home/.zshrc"
   ln -s "$1" "$home/.config/zellij"
   ln -s "$SANDBOX_ROOT/packages/ade-kit/src/cli.ts" "$home/.local/bin/ade"
-  for p in "$SANDBOX_BIN"/*(N); do [[ ${p:t} == ade ]] || ln -s "$p" "$home/.local/bin/"; done
+  [[ -z $SANDBOX_BIN ]] || for p in "$SANDBOX_BIN"/*(N); do [[ ${p:t} == ade ]] || ln -s "$p" "$home/.local/bin/"; done
   # Zellij's cache folder on macOS, and on Linux.
   for p in "$home/Library/Caches/org.Zellij-Contributors.Zellij" "$home/.cache/zellij"; do
     mkdir -p "$p"

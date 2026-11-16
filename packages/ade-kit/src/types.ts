@@ -107,6 +107,13 @@ export interface Agent {
   name: string
   label?: string
   start(o: { session?: string; prompt?: string }): string[] // the command for its pane
+  // The command that carries on with the latest conversation in the folder
+  // `dir` (ade agent --resume: a pane the multiplexer restored); undefined
+  // when there is none, and the agent starts afresh.
+  resume?(dir: string, env: Record<string, string | undefined>): Promise<string[] | undefined>
+  // Reload its configuration and plugins for every pane (ade restart-agent
+  // --reload, before the fresh agent starts).
+  reload?(env: Record<string, string | undefined>): Promise<void>
   // Put text in the agent's input, for you to finish and send (a selection,
   // with your question to come).
   insert(text: string, reach: Reach): Promise<void>

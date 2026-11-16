@@ -42,9 +42,9 @@ test("OpenCode: pasted into; started with the configured command, on a conversat
   const plain = opencode(makeKit({ config: DEFAULTS }))
   assert.deepEqual([plain.name, plain.label], ["opencode", "OpenCode"])
   assert.deepEqual(plain.start({}), ["opencode"])
-  const config = { ...DEFAULTS, opencode: { command: ["opencode-pane"] } } as Config
+  const config = { ...DEFAULTS, opencode: { command: ["oc-wrapper"] } } as Config
   assert.deepEqual(opencode(makeKit({ config })).start({ session: "ses_1", prompt: "go" }), [
-    "opencode-pane",
+    "oc-wrapper",
     "--session",
     "ses_1",
     "--prompt",
@@ -72,6 +72,36 @@ const opencodeAnswering = (answers: Record<string, RunResult>) => {
 }
 const ok = (stdout: string) => ({ ok: true, stdout, stderr: "" })
 const failed = (stderr: string) => ({ ok: false, stdout: "", stderr })
+
+test("OpenCode resume: --continue when the folder has a top-level conversation; else nothing (a fresh start)", async () => {
+  const latest = `api get /api/session?limit=1&order=desc&parentID=null&directory=${encodeURIComponent("/w/a b")}`
+  const env = { HOME: "/home/me" }
+  const { agent, ran } = opencodeAnswering({ [latest]: ok(JSON.stringify({ data: [{ id: "ses_1" }] })) })
+  assert.deepEqual(await agent.resume?.("/w/a b", env), ["opencode", "--continue"])
+  assert.deepEqual(ran, [{ argv: ["opencode", ...latest.split(" ")], env }])
+  for (const answer of [ok(JSON.stringify({ data: [] })), ok("<html>"), failed("Error: boom")])
+    assert.equal(await opencodeAnswering({ [latest]: answer }).agent.resume?.("/w/a b", env), undefined)
+})
+
+test("OpenCode reload: a running service reloads; a stopped one is left alone; a failure says why", async () => {
+  const running = { "service status": ok("http://127.0.0.1:4096\n") }
+  const { agent, ran } = opencodeAnswering(running)
+  await agent.reload?.({})
+  assert.deepEqual(
+    ran.map((r) => r.argv.slice(1).join(" ")),
+    ["service status", "reload"],
+  )
+  const stopped = opencodeAnswering({ "service status": ok("stopped\n") })
+  await stopped.agent.reload?.({})
+  assert.deepEqual(
+    stopped.ran.map((r) => r.argv.slice(1).join(" ")),
+    ["service status"],
+  )
+  await assert.rejects(
+    opencodeAnswering({ ...running, reload: failed("Error: Directory not found") }).agent.reload!({}),
+    new Error("OpenCode could not reload: Error: Directory not found"),
+  )
+})
 
 test("OpenCode forgetGone: a stopped service, or no opencode, is asked nothing more (opencode api would start one)", async () => {
   for (const status of [ok("stopped\n"), failed("spawn opencode ENOENT")]) {

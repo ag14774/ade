@@ -126,8 +126,7 @@ EOF
 chmod +x "$TMP/bin/zellij"
 ln -s "$ADE" "$TMP/bin/ade"
 export PATH="$TMP/bin:$PATH"
-# The starter's ADE config (OpenCode through opencode-pane, worktrees in the
-# bare layout) with the default tab names, never your own.
+# The starter's ADE config with the default tab names, never your own.
 jq 'del(.zellij.tabName)' "$ROOT/starter/ade/config.json" > "$TMP/ade.json"
 export ADE_CONFIG=$TMP/ade.json
 
@@ -156,7 +155,7 @@ git -C "$seed" remote add origin "$remote"
 git -C "$seed" push -q -u origin main
 git --git-dir="$remote" symbolic-ref HEAD refs/heads/main
 
-source "$ROOT/starter/shell/ade.zsh"
+source "$ROOT/starter/shell/ade.sh"
 
 cd "$TMP"
 wtclone "$remote" project >/dev/null
@@ -185,25 +184,31 @@ wtrm stayed >/dev/null 2>&1
 # Options go before the branch; leftovers are rejected rather than ignored.
 if wt main -t >/dev/null 2>&1; then fail "wt should reject options after the branch"; fi
 
-# A ADE_SEED array replaces the defaults even though arrays cannot be exported.
+# ADE_SEED replaces the defaults.
 print 'custom' > "$project/main/custom.txt"
-ADE_SEED=(custom.txt)
-wt seed-array >/dev/null
+export ADE_SEED=custom.txt
+wt seed-env >/dev/null
 unset ADE_SEED
 assert_eq "$(<custom.txt)" custom
 [[ ! -e .env ]] || fail "ADE_SEED should replace the default seed list"
 
-# An unexported ADE_SEED_FILE still selects the seed manifest.
+# ADE_SEED_FILE selects the seed manifest.
 cd "$project/main"
 print 'custom.txt' > "$TMP/seed-manifest"
-ADE_SEED_FILE=$TMP/seed-manifest
+export ADE_SEED_FILE=$TMP/seed-manifest
 wt seed-file >/dev/null
 unset ADE_SEED_FILE
 assert_eq "$(<custom.txt)" custom
 [[ ! -e .env ]] || fail "ADE_SEED_FILE should replace the default seed list"
 
 cd "$project/main"
-wtrm -f seed-array >/dev/null
+# The functions are plain POSIX shell: the same in sh and bash.
+for shell in sh bash; do
+  out=$($shell -c '. "$1" && cd "$2" && wt "$3" >/dev/null 2>&1 && pwd' $shell "$ROOT/starter/shell/ade.sh" "$project/main" "in-$shell")
+  assert_eq "$out" "$project/in-$shell"
+  wtrm -f "in-$shell" >/dev/null 2>&1
+done
+wtrm -f seed-env >/dev/null
 wtrm -f seed-file >/dev/null
 rm "$project/main/custom.txt"
 cd "$project"
@@ -446,8 +451,6 @@ cd "$project/main"
 # --- Zellij tabs, against the fake zellij: the caller is pane 1 in tab 1. ---
 export ZJ_STATE=$TMP/zj ZELLIJ=0 ZELLIJ_SESSION_NAME=test ZELLIJ_PANE_ID=1
 mkdir -p "$ZJ_STATE"
-# opencode-pane on PATH, as installed.
-ln -s "$ROOT/starter/bin/opencode-pane" "$TMP/bin/"
 print 1000 > "$ZJ_STATE/next" # generated IDs never meet the hand-made ones below
 printf '1\thome\n' > "$ZJ_STATE/tabs"
 printf '1\t1\tmain\t%s\t-\n' "$TMP" > "$ZJ_STATE/panes"
@@ -505,7 +508,7 @@ zellij action go-to-tab-by-id 1
 wt -p 'fix the flaky test' prompted >/dev/null 2>&1
 tab=$(tab_in "$project/prompted")
 assert_eq "$(focused_tab)" 1
-[[ $(opencode_command "$tab") == */opencode-pane' --prompt fix the flaky test' ]] \
+[[ $(opencode_command "$tab") == */ade' agent --prompt fix the flaky test' ]] \
   || fail "OpenCode should start with the prompt, got: $(opencode_command "$tab")"
 if wt -p 'again' prompted >/dev/null 2>&1; then
   fail "wt -p should refuse a worktree whose tab already exists"
@@ -516,10 +519,10 @@ fi
 wt --session ses_1 -p 'carry on' sessioned >/dev/null 2>&1
 tab=$(tab_in "$project/sessioned")
 assert_eq "$(focused_tab)" 1
-[[ $(opencode_command "$tab") == */opencode-pane' --session ses_1 --prompt carry on' ]] \
+[[ $(opencode_command "$tab") == */ade' agent --session ses_1 --prompt carry on' ]] \
   || fail "OpenCode should start on the conversation and prompt, got: $(opencode_command "$tab")"
 wt --session ses_2 sessioned-quiet >/dev/null 2>&1
-[[ $(opencode_command "$(tab_in "$project/sessioned-quiet")") == */opencode-pane' --session ses_2' ]] \
+[[ $(opencode_command "$(tab_in "$project/sessioned-quiet")") == */ade' agent --session ses_2' ]] \
   || fail "OpenCode should start on the conversation, got: $(opencode_command "$(tab_in "$project/sessioned-quiet")")"
 if wt -s --session ses_3 sessioned-stay >/dev/null 2>&1; then fail "--session should refuse -s"; fi
 [[ ! -d $project/sessioned-stay ]] || fail "--session with -s should create nothing"
@@ -570,7 +573,8 @@ assert_eq "$out" ""
 assert_eq "$(<"$TMP/err")" "ade worktree open: said already has a tab; send the prompt to its OpenCode instead"
 
 # -p: the layout's OpenCode pane is replaced in place, in the background, by
-# opencode-pane on the prompt, in the worktree; the pane closes with it.
+# `ade agent` on the prompt (ade as found on PATH), in the worktree; the pane
+# closes with it.
 engine -p '-x "quoted" prompt' spoken || fail "wt -p failed: $(<"$TMP/err")"
 assert_eq "$out" "$project/spoken"
 assert_eq "$(grep '^ade worktree open: ' "$TMP/err" | grep -v '^ade worktree open: seeded ')" $'ade worktree open: opened tab spoken in the background\nade worktree open: OpenCode in tab spoken is working on the prompt'
@@ -580,8 +584,8 @@ called_with new-pane --in-place --close-replaced-pane --no-focus --close-on-exit
   || fail "expected the opencode pane to be replaced in place, got: $(<"$ZJ_STATE/log")"
 pane=$(opencode_pane "$tab")
 assert_eq "${pane%%|*}" "$project/spoken"
-assert_eq "${${pane#*|}#* }" '--prompt -x "quoted" prompt'
-assert_eq "${${${pane#*|}%% *}:A}" "$ROOT/starter/bin/opencode-pane"
+assert_eq "${${pane#*|}#* }" 'agent --prompt -x "quoted" prompt'
+assert_eq "${${pane#*|}%% *}" "$TMP/bin/ade"
 
 # Without the caller's pane ID (a script naming only the session), the same.
 env -u ZELLIJ_PANE_ID "$ADE" worktree open -b nopane >/dev/null 2>&1 \
