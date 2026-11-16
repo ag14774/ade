@@ -21,9 +21,9 @@
 #
 #   The config under test, each settable before sourcing:
 #   SANDBOX_CONFIG                   folders for sandbox_config (default: this
-#                                    checkout's config/.config)
-#   SANDBOX_BIN                      commands linked into ~/.local/bin
-#                                    (default: this checkout's config/.local/bin)
+#                                    checkout's starter/)
+#   SANDBOX_BIN                      commands linked into ~/.local/bin, besides
+#                                    this checkout's ade (default: starter/bin)
 #   SANDBOX_LAYOUT                   the tab layout with the bar (default:
 #                                    $SANDBOX_CONFIG/zellij/layouts/dev.kdl)
 #
@@ -51,7 +51,7 @@
 #                                    servers, remove the socket dir
 
 SANDBOX_ROOT=${${(%):-%x}:A:h:h:h}
-: ${SANDBOX_CONFIG:=$SANDBOX_ROOT/config/.config} ${SANDBOX_BIN:=$SANDBOX_ROOT/config/.local/bin}
+: ${SANDBOX_CONFIG:=$SANDBOX_ROOT/starter} ${SANDBOX_BIN:=$SANDBOX_ROOT/starter/bin}
 : ${SANDBOX_LAYOUT:=$SANDBOX_CONFIG/zellij/layouts/dev.kdl}
 
 # The layout's bar, downloaded once per release into a cache of the tests' own
@@ -61,7 +61,7 @@ sandbox_bar() {
   local cache tmp
   SANDBOX_BAR_URL=$(sed -n 's/.*plugin location="\(https:[^"]*\)".*/\1/p' "$SANDBOX_LAYOUT" | head -n 1)
   [[ -n $SANDBOX_BAR_URL ]] || { print -u2 "sandbox_bar: no bar URL in $SANDBOX_LAYOUT"; exit 1; }
-  cache=${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles-tests/zellij-plugins
+  cache=${XDG_CACHE_HOME:-$HOME/.cache}/ade-tests/zellij-plugins
   SANDBOX_BAR=$cache/${${SANDBOX_BAR_URL#https://}//\//_}
   [[ -s $SANDBOX_BAR ]] && return 0
   mkdir -p "$cache"
@@ -94,7 +94,8 @@ sandbox_init() { # $1 = the test's Zellij config folder (becomes ~/.config/zelli
   mkdir -p "$home"/{.config,.cache,.local/bin,.local/share,.local/state} "$bin" "$TMP/tmp"
   : > "$home/.zshrc"
   ln -s "$1" "$home/.config/zellij"
-  for p in "$SANDBOX_BIN"/*(N); do ln -s "$p" "$home/.local/bin/"; done
+  ln -s "$SANDBOX_ROOT/packages/ade-kit/src/cli.ts" "$home/.local/bin/ade"
+  for p in "$SANDBOX_BIN"/*(N); do [[ ${p:t} == ade ]] || ln -s "$p" "$home/.local/bin/"; done
   # Zellij's cache folder on macOS, and on Linux.
   for p in "$home/Library/Caches/org.Zellij-Contributors.Zellij" "$home/.cache/zellij"; do
     mkdir -p "$p"

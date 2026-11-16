@@ -65,6 +65,6 @@ app loads the app part when it starts.
 
 ## Tests
 
-`node --test test/*.test.ts`. The dotfiles' `tests/ade_plugin_smoke.zsh` runs
+`node --test test/*.test.ts`. The repository's `tests/ade_plugin_smoke.zsh` runs
 it with a private OpenCode service and a throwaway Zellij session (nine short
 model calls).

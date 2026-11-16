@@ -113,10 +113,11 @@ case $cmd in
 esac
 EOF
 chmod +x "$TMP/bin/zellij"
+ln -s "$ADE" "$TMP/bin/ade"
 export PATH="$TMP/bin:$PATH"
-# This checkout's ADE config (OpenCode through opencode-pane, worktrees in the
+# The starter's ADE config (OpenCode through opencode-pane, worktrees in the
 # bare layout) with the default tab names, never your own.
-jq 'del(.zellij.tabName)' "$ROOT/config/.config/ade/config.json" > "$TMP/ade.json"
+jq 'del(.zellij.tabName)' "$ROOT/starter/ade/config.json" > "$TMP/ade.json"
 export ADE_CONFIG=$TMP/ade.json
 
 tab_in() { # tab whose main pane is in directory $1
@@ -144,8 +145,7 @@ git -C "$seed" remote add origin "$remote"
 git -C "$seed" push -q -u origin main
 git --git-dir="$remote" symbolic-ref HEAD refs/heads/main
 
-source "$ROOT/shell/worktree.zsh"
-source "$ROOT/shell/git.zsh"
+source "$ROOT/starter/shell/worktree.zsh"
 
 cd "$TMP"
 wtclone "$remote" project >/dev/null
@@ -246,26 +246,6 @@ assert_eq "$out" $'ade worktree prune: worktrees to remove:\n'"$(row merged-bran
 unset GH_MERGED_OID
 export GH_PR_STATE=OPEN
 for name in kept-branch local-only reused-name; do wtrm "$name" >/dev/null 2>&1; done
-
-# ggpush and ggpull use the configured upstream (here a contributor's fork),
-# even when its tracking ref was pruned, and refuse a detached HEAD.
-fork="$TMP/contributor/topic.git"
-git init -q --bare "$fork"
-git -C "$seed" push -q "$fork" HEAD:refs/heads/fork-topic
-git -C "$project" remote add fork "$fork"
-git -C "$project" fetch -q fork
-git -C "$project" worktree add -q --track -b fork-topic "$project/forked" fork/fork-topic
-git --git-dir="$fork" update-ref -d refs/heads/fork-topic
-git -C "$project" update-ref -d refs/remotes/fork/fork-topic
-cd "$project/forked"
-ggpush >/dev/null 2>&1 || fail "ggpush to the fork failed"
-git --git-dir="$fork" show-ref -q --verify refs/heads/fork-topic || fail "ggpush should push to the configured fork"
-git --git-dir="$remote" show-ref -q --verify refs/heads/fork-topic && fail "ggpush should not fall back to origin"
-git switch -q --detach
-if ggpush >/dev/null 2>&1; then fail "ggpush should refuse a detached HEAD"; fi
-if ggpull >/dev/null 2>&1; then fail "ggpull should refuse a detached HEAD"; fi
-cd "$project/main"
-wtrm forked >/dev/null 2>&1
 
 # --- ade worktree open: the worktree's folder and branch ---
 # A new branch starts at origin/HEAD without an upstream (the first push sets
@@ -456,7 +436,7 @@ cd "$project/main"
 export ZJ_STATE=$TMP/zj ZELLIJ=0 ZELLIJ_SESSION_NAME=test ZELLIJ_PANE_ID=1
 mkdir -p "$ZJ_STATE"
 # opencode-pane on PATH, as installed.
-ln -s "$ROOT/config/.local/bin/opencode-pane" "$TMP/bin/"
+ln -s "$ROOT/starter/bin/opencode-pane" "$TMP/bin/"
 print 1000 > "$ZJ_STATE/next" # generated IDs never meet the hand-made ones below
 printf '1\thome\n' > "$ZJ_STATE/tabs"
 printf '1\t1\tmain\t%s\t-\n' "$TMP" > "$ZJ_STATE/panes"
@@ -590,7 +570,7 @@ called_with new-pane --in-place --close-replaced-pane --no-focus --close-on-exit
 pane=$(opencode_pane "$tab")
 assert_eq "${pane%%|*}" "$project/spoken"
 assert_eq "${${pane#*|}#* }" '--prompt -x "quoted" prompt'
-assert_eq "${${${pane#*|}%% *}:A}" "$ROOT/config/.local/bin/opencode-pane"
+assert_eq "${${${pane#*|}%% *}:A}" "$ROOT/starter/bin/opencode-pane"
 
 # Without the caller's pane ID (a script naming only the session), the same.
 env -u ZELLIJ_PANE_ID "$ADE" worktree open -b nopane >/dev/null 2>&1 \

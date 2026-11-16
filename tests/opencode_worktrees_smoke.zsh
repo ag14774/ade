@@ -45,7 +45,7 @@ cp -R "$ROOT/packages" "$TMP/src/"
 mkdir -p "$TMP/src/node_modules"
 ln -s ../packages/ade-kit "$TMP/src/node_modules/ade-kit"
 ln -s "$TMP/src/packages/opencode-ade-worktrees" "$XDG_CONFIG_HOME/opencode/plugins/ade-worktrees"
-cp "$ROOT/config/.config/ade/config.json" "$XDG_CONFIG_HOME/ade/"
+cp "$ROOT/starter/ade/config.json" "$XDG_CONFIG_HOME/ade/"
 ade=$TMP/src/packages/ade-kit/src/cli.ts
 
 # A project in the bare layout: main (with a .env to seed) and feat-old, made

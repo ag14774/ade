@@ -6,7 +6,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ag14774/dotfiles.git",
+    "url": "git+https://github.com/ag14774/ade.git",
     "directory": "packages/opencode-ade-status"
   },
   "type": "module",

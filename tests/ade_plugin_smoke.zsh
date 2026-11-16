@@ -141,7 +141,7 @@ ln -s "$TMP/src/packages/opencode-ade-worktrees" "$config/plugins/ade-worktrees"
 # This checkout's ADE config (OpenCode through opencode-pane); the sandbox has
 # this checkout's ade and opencode-pane first on PATH, as installed.
 mkdir -p "$TMP/oc/config/ade"
-cp "$ROOT/config/.config/ade/config.json" "$TMP/oc/config/ade/"
+cp "$ROOT/starter/ade/config.json" "$TMP/oc/config/ade/"
 export XDG_DATA_HOME=$TMP/oc/data XDG_STATE_HOME=$TMP/oc/state XDG_CACHE_HOME=$TMP/oc/cache \
   XDG_CONFIG_HOME=$TMP/oc/config
 [[ -r $REAL/.config/zsh/secrets.zsh ]] && source "$REAL/.config/zsh/secrets.zsh"

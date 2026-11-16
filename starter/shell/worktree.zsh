@@ -15,10 +15,8 @@
 #                         layout, and cd into it
 #   wthelp                show every option
 #
-# They run this checkout's ade. ADE_SEED (the seed patterns) may be a zsh
-# array here.
-
-typeset -g _WT_ADE=${${(%):-%x}:A:h:h}/config/.local/bin/ade
+# They run `ade` from PATH. ADE_SEED (the seed patterns) may be a zsh array
+# here.
 
 # Run an `ade worktree` command, then cd where it says. ADE_SEED may be a zsh
 # array (not exportable), so it is passed newline-separated; ADE_SEED_FILE may
@@ -31,7 +29,7 @@ _wt_ade() {
   (( ${+ADE_SEED_FILE} )) && env_args+=("ADE_SEED_FILE=$ADE_SEED_FILE")
   cwd_file=$(mktemp "${TMPDIR:-/tmp}/wt-cwd.XXXXXX") || return 1
   {
-    command env "${env_args[@]}" "$_WT_ADE" worktree --cwd-file "$cwd_file" "$@"
+    command env "${env_args[@]}" ade worktree --cwd-file "$cwd_file" "$@"
     rc=$?
     dir=$(<"$cwd_file")
   } always {
@@ -53,12 +51,11 @@ wthelp() {
   print -r -- 'wtclone, wt, wtrm, wtls, wtprune and wtconvert run ade worktree clone, open,
 rm, ls, prune and convert, and cd where it reports (wt without -s/-t/-b/-p).
 '
-  "$_WT_ADE" worktree help
+  command ade worktree help
 }
 
 # ---- completions -------------------------------------------------------------
-# shell/init.zsh runs `compinit` before the ~/.zshrc block sources this file, so
-# `compdef` already exists here. `compdef _fn cmd` registers: "to complete `cmd`,
+# Source this file after `compinit`, so `compdef` exists. `compdef _fn cmd` registers: "to complete `cmd`,
 # run the shell function `_fn`". Inside _fn we build an array of candidates and
 # hand them to `compadd`, which shows/inserts them.
 

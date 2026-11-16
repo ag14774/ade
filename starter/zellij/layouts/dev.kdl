@@ -1,0 +1,110 @@
+layout {
+    // ============================ Reusable pieces ============================
+    // TOP BAR: zjstatus (size is set where the template is used, not here).
+    pane_template name="zjbar" borderless=true {
+        // ade-zjstatus (github.com/ag14774/ade-zjstatus, needs Zellij 0.46): zjstatus
+        // with agent statuses, see its FORK.md.
+        plugin location="https://github.com/ag14774/ade-zjstatus/releases/download/v0.25.0-ade.5/zjstatus.wasm" {
+            // No mode ({mode}): the bottom bar shows it, with its keys.
+            format_left   "{tabs}#[fg=#585b70]  +⌥t "
+            format_center ""
+            // No session name (it is always main) and no clock: zjstatus redraws
+            // only on Zellij events, so a clock would go stale while the session idles.
+            // Right: how many agents are waiting, failed, done or working.
+            format_right  "{attention}"
+            format_space  ""
+
+            border_enabled             "false"
+            hide_frame_for_single_pane "false"
+
+            // {attention}: the icon of the most urgent status in the tab. A faint
+            // separator between tabs; groups get a bright one (below).
+            tab_normal    "#[fg=#6c7086] {attention}{name} "
+            tab_active    "#[fg=#89b4fa,bold] {attention}{name} "
+            tab_separator "#[fg=#45475a]⋮"
+
+            // What agents report to Zellij themselves (OSC 7501; the ADE status
+            // plugin, packages/opencode-ade-status, adds done and failed for
+            // OpenCode), not Zellij's own guesses about other programs. Nerd
+            // Font icons in Catppuccin Mocha: bell, times-circle, check,
+            // timer-sand. "done" and "failed" last until you have seen the pane.
+            attention_source          "program_status"
+            attention_needs_you       "#[fg=#fab387]\u{f0f3} "
+            attention_failed          "#[fg=#f38ba8]\u{f057} "
+            attention_done            "#[fg=#a6e3a1]\u{f00c} "
+            attention_working         "#[fg=#f9e2af]\u{f051f} "
+            attention_count_separator " "
+            attention_format          "{counts} "
+
+            // Tab groups: a tab named "prefix: name" belongs to the group
+            // "prefix" (ade names worktree tabs "project: worktree", see
+            // ~/.config/ade/config.json); a lone one is a group of one, which
+            // never collapses, so a project always looks the same. The bar
+            // keeps a group's tabs together, which needs the permission
+            // "Execute actions as the user". Tab mode g/G collapse or expand.
+            // Labels in mauve (a collapsed group: its tab count and statuses),
+            // a bright separator next to each group. As in ade-zjstatus's
+            // examples/groups.kdl.
+            tab_groups                 "true"
+            tab_group_expanded         "#[fg=#cba6f7,bold] {name}:"
+            tab_group_collapsed        "#[fg=#cba6f7] {name} +{count} {attention_counts} "
+            tab_group_collapsed_active "#[fg=#cba6f7,bold] {name}:"
+            tab_group_hidden           "#[fg=#6c7086]+{count} {attention_counts} "
+            tab_group_separator        "#[fg=#94e2d5,bold]┃"
+        }
+    }
+    // BOTTOM BAR: zellij keybinding hints.
+    pane_template name="keyhints" borderless=true {
+        plugin location="zellij:status-bar"
+    }
+    // CONTENT: main shell (left ~70%) | opencode (right 30%).
+    // opencode-pane (config/.local/bin) keeps OpenCode restorable after a
+    // restart; without it on PATH, plain OpenCode starts.
+    pane_template name="workspace" split_direction="vertical" {
+        pane name="main" focus=true
+        pane name="opencode" size="30%" {
+            command "sh"
+            args "-c" "command -v opencode-pane >/dev/null && exec opencode-pane; exec zsh -i -c opencode"
+            close_on_exit true
+        }
+    }
+
+    // Wrapper (top bar + content + bottom bar). Used by the initial tab and the
+    // editor swap layout so the bars stay put when the arrangement changes.
+    tab_template name="ui" {
+        zjbar size=1
+        children
+        keyhints size=1
+    }
+
+    // ============================ Tabs ============================
+    // Initial tab.
+    ui {
+        workspace
+    }
+
+    // Tabs opened without naming a layout: same dev env, bars included. Alt-t,
+    // tab-mode n and `wt -t/-b` name this layout instead (it then provides the
+    // initial tab above), because a resurrected session's saved copy of this
+    // template starts commands suspended. new_tab_template is a full blueprint
+    // (no `children`), so main is named here too.
+    new_tab_template {
+        zjbar size=1
+        workspace
+        keyhints size=1
+    }
+
+    // When Helix opens, pane count hits 5 (2 bars + editor + main + opencode) and
+    // zellij snaps to this: editor top 70% / main bottom 30%; opencode stays put.
+    swap_tiled_layout name="with-editor" {
+        ui min_panes=5 {
+            pane split_direction="vertical" {
+                pane split_direction="horizontal" {
+                    pane name="editor"
+                    pane name="main" size="30%"
+                }
+                pane name="opencode" size="30%"
+            }
+        }
+    }
+}

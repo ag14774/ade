@@ -22,5 +22,5 @@ change applies after `opencode service restart`.
 
 ## Tests
 
-`node --test test/*.test.ts`. The dotfiles' `tests/opencode_worktrees_smoke.zsh`
+`node --test test/*.test.ts`. The repository's `tests/opencode_worktrees_smoke.zsh`
 runs it with a private OpenCode service (no Zellij, no model calls).

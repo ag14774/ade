@@ -31,6 +31,6 @@ OpenCode app loads it when it starts, so restart the apps after a change.
 
 ## Tests
 
-`node --test test/*.test.ts`. The dotfiles' `tests/opencode_attention_smoke.zsh`
+`node --test test/*.test.ts`. The repository's `tests/opencode_attention_smoke.zsh`
 checks the sounds with a private OpenCode service, and
 `tests/ade_plugin_smoke.zsh` the statuses.
