@@ -5,9 +5,8 @@
 # worktree_remove do, follow the repository's layout, get a real branch and
 # seeded files, and need force when they have changes. A worktree with a
 # running conversation stays; once removed, its conversations move to main and
-# carry on there. The service lets go of the folders that are gone (its reload
-# fails on them): those removed by OpenCode or `ade worktree rm`, and, with
-# `ade forget-gone`, those deleted by hand. OpenCode runs a private
+# carry on there. The service lets go of the worktrees OpenCode or
+# `ade worktree rm` removed (its reload fails on them). OpenCode runs a private
 # background service (its own HOME, XDG folders and port; stopped by its pid),
 # with this checkout's packages; no Zellij, no model calls: a conversation
 # runs while it waits on a model server of the test's that never answers.
@@ -205,13 +204,5 @@ chat=$(conversation "$P/chat" "Chat")
 out=$(cd "$P/main" && node "$ade" worktree rm chat 2>&1) || fail "ade worktree rm chat failed: $out"
 [[ $out == *"moved a conversation to main"* && $(folder_of "$chat") == "$P/main" ]] \
   || fail "ade worktree rm should move chat's conversation to main: $out"
-
-step "a worktree deleted by hand: ade forget-gone lets go of it, then OpenCode's reload works"
-location "$dir" >/dev/null
-rm -rf "$dir"
-out=$(cd "$P/main" && node "$ade" forget-gone 2>&1) || fail "ade forget-gone failed: $out"
-[[ $out == "$dir" ]] || fail "ade forget-gone should print $dir: $out"
-! loaded "$dir" || fail "the service should have let go of $dir"
-out=$(oc reload 2>&1) || fail "OpenCode's reload should work once the service let go of $dir: $out"
 
 print "opencode worktrees smoke test: ok"

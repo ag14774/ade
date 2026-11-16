@@ -36,10 +36,11 @@ and tests, and the agent panes no longer need a script of their own.
   on a new conversation, in the current folder; it never reloads the agent's
   configuration for every pane (OpenCode: `opencode reload`, which cancels
   the questions waiting in every tab).
-- `ade forget-gone`: the agent forgets the folders that no longer exist.
-  OpenCode's service failed its reload on them. `ade worktree rm`, `prune`
-  and OpenCode's own worktree removals do it too. (From the dotfiles,
-  [ag14774/dotfiles#2](https://github.com/ag14774/dotfiles/pull/2).)
+- `ade worktree rm`, `prune` and OpenCode's own worktree removals have the
+  agent forget the removed worktree: OpenCode's service failed its reload on
+  folders that are gone. (From the dotfiles,
+  [ag14774/dotfiles#2](https://github.com/ag14774/dotfiles/pull/2), without
+  its `ade forget-gone` command.)
 - Removing a worktree no longer strands its conversations in a folder that
   is gone, where every prompt failed. `ade worktree rm`, `prune` and
   OpenCode's own removals (the agents' `worktree_remove`) move the idle ones

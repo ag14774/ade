@@ -33,7 +33,6 @@ everything.
 | `ade review --scope` | Prints what a review here covers: `-r BASE..HEAD` for the commits since `worktrees.base`, `-w` for uncommitted changes. |
 | `ade agent [--session ID] [--prompt TEXT]` | Runs the configured agent in this terminal, on the conversation or the prompt given: the command of an agent pane (ade starts agent panes with it). It runs again as `ade agent --resume`, with the start in its environment only, and stays as the agent's parent, so a multiplexer that saves panes by command line saves `ade agent --resume`. Restored, that carries on with the folder's latest conversation, where the agent can (an agent's `resume`), and never sends the prompt again. |
 | `ade restart-agent [DIR]` | Replaces the tab's agent with a fresh one, on a new conversation, started in `DIR` (default: the current folder), in the same place; a tab without an agent gets one (with Zellij, on the right: `zellij.newPanes`). Focus stays where it is. The old one's conversation isn't stopped. |
-| `ade forget-gone` | Lets the agent forget the folders that no longer exist, such as worktrees deleted by hand, and prints them. OpenCode's shared service keeps a location for every folder it served, also once the folder is gone, and its reload then fails; only a running service is asked. `ade worktree rm` does this too. |
 | `ade where` | Prints the folder of the focused tiled pane of its own tab; if that pane reports no folder, the tab's agent pane's, then its shell pane's. Outside a multiplexer, or when that folder no longer exists, it prints the folder it was started in. So in a tiled pane you get your own folder, and in a floating pane opened by a key (which starts in the session's folder) the folder of the focused tiled pane underneath. |
 | `ade worktree COMMAND` | Creates, opens, lists and removes worktrees: below. |
 
@@ -59,7 +58,7 @@ Set `ADE_LOG=FILE` to append each command `ade` runs to a file, and
   default branch's worktree, or to the project folder when that is the one
   removed: a conversation in a folder that is gone fails. It closes the
   worktree's tabs, except yours and except when an agent runs it, and the
-  agent forgets the worktree, as with `ade forget-gone`. While one of the
+  agent forgets the worktree (the adapter's `forgetGone`). While one of the
   worktree's conversations is running it refuses, `-f` or not, and names it:
   a running conversation moves only at the end of its current step, too late.
   Move it out first (an agent: `session_move`), then remove the worktree in a

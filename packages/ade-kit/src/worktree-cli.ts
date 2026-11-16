@@ -27,8 +27,8 @@ commands:
                             agent's conversations there to the default
                             branch's worktree, close its tabs, except yours
                             (none when an agent runs it), and let the agent
-                            forget it (ade forget-gone); refused while one of
-                            its conversations is running, -f or not
+                            forget it; refused while one of its
+                            conversations is running, -f or not
   ls [--json]               list the worktrees; --json: each one's branch,
                             changed files, commits ahead of and behind
                             worktrees.base, and whether it has a tab
