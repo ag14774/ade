@@ -176,7 +176,7 @@ sid=$(start_conversation "$oc" "$TMP/A")
 
 step "a conversation a pane shows gets the environment instructions; one no pane shows doesn't"
 wait_for 15 has_environment "$sid" || fail "no environment instructions on the conversation"
-[[ $(environment_of "$sid") == *"inside a Zellij terminal tab"*"a Helix editor pane"*"with git, ade, zellij"*'`directory`'* ]] \
+[[ $(environment_of "$sid") == *"inside a Zellij terminal tab"*"a Helix editor pane"*"with git, ade, zellij"*'`directory`'*"session_move"* ]] \
   || fail "unexpected environment instructions: $(environment_of "$sid")"
 loose=$(oc_cli api POST /api/session -d "{\"location\":{\"directory\":\"$TMP/C\"}}" 2>/dev/null | jq -r '.data.id // empty')
 [[ -n $loose ]] || fail "could not create a conversation without a pane"

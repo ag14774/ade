@@ -23,14 +23,17 @@ const BEFORE = [
 
 const kitWith = (more: Partial<Config> = {}) => makeKit({ config: { ...structuredClone(DEFAULTS), ...more } as Config })
 
-// Since then: delegate and status take `directory`.
+// Since then: delegate and status take `directory`, and a worktree with a
+// running conversation is not removed.
 const NOW = [
   BEFORE,
   "- delegate and status work on the repository of this conversation's folder. For another repository, give",
   "  them a folder in it as `directory`; there is no need to move this conversation first.",
+  "- Before removing the worktree this conversation is in, move the conversation out with session_move; then",
+  "  remove the worktree in a later step (a worktree with a running conversation is not removed).",
 ].join("\n")
 
-test("with the default config, the instructions are the ones attached before, and say how to reach another repository", async () => {
+test("with the default config, the instructions are the ones attached before, and say how to reach another repository and remove this worktree", async () => {
   assert.equal(await environmentFor(kitWith()), NOW)
   assert.equal(
     await environmentFor(makeKit({ env: { XDG_CONFIG_HOME: mkdtempSync(join(tmpdir(), "ade-env-")) } })),
