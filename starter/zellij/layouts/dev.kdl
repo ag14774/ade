@@ -1,3 +1,7 @@
+// The ade tab layout: a top bar with the agents' statuses, a shell, the agent
+// on the right, and the editor above the shell once a file is opened. The
+// pane names give the panes their roles (zellij.panes in the ADE config).
+// Colours: Catppuccin Mocha.
 layout {
     // ============================ Reusable pieces ============================
     // TOP BAR: zjstatus (size is set where the template is used, not here).
@@ -8,8 +12,8 @@ layout {
             // No mode ({mode}): the bottom bar shows it, with its keys.
             format_left   "{tabs}#[fg=#585b70]  +⌥t "
             format_center ""
-            // No session name (it is always main) and no clock: zjstatus redraws
-            // only on Zellij events, so a clock would go stale while the session idles.
+            // No clock: zjstatus redraws only on Zellij events, so a clock would
+            // go stale while the session idles.
             // Right: how many agents are waiting, failed, done or working.
             format_right  "{attention}"
             format_space  ""
@@ -58,13 +62,13 @@ layout {
         plugin location="zellij:status-bar"
     }
     // CONTENT: main shell (left ~70%) | opencode (right 30%).
-    // opencode-pane (config/.local/bin) keeps OpenCode restorable after a
-    // restart; without it on PATH, plain OpenCode starts.
+    // opencode-pane (starter/bin, linked by link.sh) keeps OpenCode restorable
+    // after a restart; without it on PATH, plain OpenCode starts.
     pane_template name="workspace" split_direction="vertical" {
         pane name="main" focus=true
         pane name="opencode" size="30%" {
             command "sh"
-            args "-c" "command -v opencode-pane >/dev/null && exec opencode-pane; exec zsh -i -c opencode"
+            args "-c" "command -v opencode-pane >/dev/null && exec opencode-pane; exec \"${SHELL:-sh}\" -i -c opencode"
             close_on_exit true
         }
     }

@@ -9,13 +9,14 @@
 #
 # When Zellij restores the pane after a restart, it continues the folder's most
 # recent conversation; a prompt is never sent twice. OpenCode gets your shell's
-# environment (~/.zshrc's PATH and secrets).
+# environment (its rc file's PATH and secrets).
 #
 # How: Zellij restores a pane with the command line it started with, so a
 # fresh start reruns this script as `--resume`, passing "fresh" (and the
 # conversation and prompt) in the environment for that run only. OpenCode runs
-# in an interactive zsh without job control (+m), which keeps it in this
-# pane's process group, so Zellij records this script, not `opencode`.
+# in your interactive shell (zsh or bash; else bash) without job control (+m),
+# which keeps it in this pane's process group, so Zellij records this script,
+# not `opencode`.
 set -u
 
 usage() {
@@ -49,7 +50,7 @@ session=${OPENCODE_PANE_SESSION:-}
 prompt=${OPENCODE_PANE_PROMPT:-}
 unset OPENCODE_PANE_FRESH OPENCODE_PANE_SESSION OPENCODE_PANE_PROMPT
 
-# shellcheck disable=SC2016 # expanded by zsh, not here
+# shellcheck disable=SC2016 # expanded by that shell, not here
 code='
 fresh=$1 session=$2 prompt=$3
 args=()
@@ -61,5 +62,9 @@ if [[ -z $fresh ]]; then
     | jq -e ".data | length > 0" >/dev/null 2>&1 && args=(--continue)
 fi
 opencode "${args[@]}"'
-zsh -i +m -c "$code" opencode-pane "$fresh" "$session" "$prompt"
+case "${SHELL:-}" in
+  */zsh | */bash) shell=$SHELL ;;
+  *) shell=bash ;;
+esac
+"$shell" -i +m -c "$code" opencode-pane "$fresh" "$session" "$prompt"
 exit $?

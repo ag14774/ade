@@ -1,0 +1,65 @@
+// The ade starter's Zellij config: only what ade adds. There is no
+// clear-defaults, so Zellij keeps all of its own keys and options and adds
+// these. If you already have a config.kdl, copy the blocks you want into it.
+
+keybinds {
+    // In normal and locked mode, so they work with either of Zellij's key
+    // presets.
+    shared_among "normal" "locked" {
+        // A new tab with the ade layout (layouts/dev.kdl): a shell, the agent
+        // on the right, and the editor above the shell once a file is opened.
+        bind "Alt t" { NewTab { layout "dev"; }; }
+
+        // Pick files in Yazi, in a floating pane; they open in this tab's
+        // editor (`ade open`), which starts if the tab has none.
+        bind "Alt y" {
+            Run "bash" "-c" "$HOME/.config/zellij/yazi-picker.sh" {
+                floating true
+                close_on_exit true
+                name "yazi"
+                x "8%"
+                y "6%"
+                width "84%"
+                height "86%"
+            }
+        }
+
+        // Review everything this worktree changed, committed or not, in
+        // tuicr (`ade review`). In the review, `y` hands your comments to the
+        // tab's agent and `e` opens a file in the editor. bash -c, because
+        // Zellij doesn't expand $HOME itself.
+        bind "Alt v" {
+            Run "bash" "-c" "$HOME/.local/bin/ade review" {
+                floating true
+                close_on_exit true
+                name "review"
+                x "4%"
+                y "4%"
+                width "92%"
+                height "90%"
+            }
+        }
+    }
+
+    // Tab mode: collapse or expand the current tab's group in the top bar
+    // (ade-zjstatus groups tabs named "project: worktree"), or all groups.
+    tab {
+        bind "g" { MessagePlugin { name "zjstatus"; payload "zjstatus::groups::toggle"; }; }
+        bind "G" { MessagePlugin { name "zjstatus"; payload "zjstatus::groups::toggle_all"; }; }
+    }
+}
+
+// New sessions start with the ade layout.
+default_layout "dev"
+
+// Zellij saves sessions so they can be resurrected. This script decides which
+// commands a resurrected pane reruns: the editor, and the agent continuing its
+// conversation. Other panes come back as shells.
+post_command_discovery_hook "f=$HOME/.config/zellij/resurrect-command.sh; [ -r \"$f\" ] && . \"$f\"; true"
+
+// Zellij reports the session's combined status to the terminal (OSC 7501),
+// and some terminals (iTerm2 3.7) alert on every change, from every tab. The
+// tab icons in the bar don't need it.
+attention {
+    host_status false
+}

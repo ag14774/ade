@@ -1,0 +1,16 @@
+# The ade starter's Helix keys. If you already have a config.toml, copy these
+# tables into it.
+
+[keys.normal]
+# Re-read every open file from disk: Helix doesn't notice when an agent
+# changes them. Unsaved edits are dropped.
+C-r = ":reload-all"
+
+# + a: put a reference to the selected lines (FILE:START-END), and the
+# selection, in the prompt of this tab's agent (`ade send`), and focus it.
+# You add the question.
+[keys.normal."+"]
+a = ["keep_primary_selection", ":pipe-to $HOME/.local/bin/ade send '%{buffer_name}' %{selection_line_start} %{selection_line_end} '%{language}'"]
+
+[keys.select."+"]
+a = ["keep_primary_selection", ":pipe-to $HOME/.local/bin/ade send '%{buffer_name}' %{selection_line_start} %{selection_line_end} '%{language}'"]
