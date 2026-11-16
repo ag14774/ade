@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { execFileSync } from "node:child_process"
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { test } from "node:test"
@@ -30,17 +30,23 @@ writeFileSync(join(project, "main", ".env"), "secret\n")
 
 // A stand-in for the OpenCode CLI, so that no test reaches your service: its
 // service runs at FAKE_OPENCODE_URL with the locations
-// FAKE_OPENCODE_LOCATIONS, and each call is logged to FAKE_OPENCODE_LOG.
+// FAKE_OPENCODE_LOCATIONS and the sessions FAKE_OPENCODE_SESSIONS (a list, on
+// one page) of which FAKE_OPENCODE_ACTIVE are running, and each call is
+// logged to FAKE_OPENCODE_LOG.
 const bin = join(temp, "bin")
 mkdirSync(bin)
 writeFileSync(
   join(bin, "opencode"),
   `#!/bin/sh
 echo "$*" >> "$FAKE_OPENCODE_LOG"
-case "$1 $2" in
-  "service status") echo "$FAKE_OPENCODE_URL" ;;
-  "api get") echo "$FAKE_OPENCODE_LOCATIONS" ;;
-  "api delete") ;;
+active=$FAKE_OPENCODE_ACTIVE; [ -n "$active" ] || active='{}'
+sessions=$FAKE_OPENCODE_SESSIONS; [ -n "$sessions" ] || sessions='[]'
+case "$1 $2 $3" in
+  "service status ") echo "$FAKE_OPENCODE_URL" ;;
+  "api get /api/debug/location") echo "$FAKE_OPENCODE_LOCATIONS" ;;
+  "api get /api/session/active") echo "{\\"data\\":$active}" ;;
+  "api get /api/session?"*) echo "{\\"data\\":$sessions,\\"cursor\\":{}}" ;;
+  "api delete "* | "api post "*) ;;
   *) exit 1 ;;
 esac
 `,
@@ -131,5 +137,39 @@ test("remove: a worktree with changes needs force (OpenCode asks); then it goes,
   await assert.rejects(
     s.remove({ directory: join(project, "gone"), force: false }),
     /ade worktree rm: no worktree found/,
+  )
+})
+
+test("remove: refused while a conversation there is running, as an error to show (whatever its title), not a request to force; then its conversations move to main", async () => {
+  const made = await s.create({ directory: suggested("talking"), sourceDirectory: join(project, ".bare") })
+  const conversation = {
+    id: "ses_talk",
+    title: "Fix: worktree is dirty, use --force",
+    location: { directory: made.directory },
+  }
+  const withSessions = (more: Record<string, string>) =>
+    strategy({
+      env: { ...env, FAKE_OPENCODE_SESSIONS: JSON.stringify([conversation]), ...more },
+      projectID: "abcdef0123",
+      forceRequired: (message) => new ForceRequired(message),
+    })
+  const busy = withSessions({ FAKE_OPENCODE_ACTIVE: JSON.stringify({ ses_talk: { type: "running" } }) })
+  for (const force of [false, true])
+    await assert.rejects(busy.remove({ directory: made.directory, force }), (error: Error) => {
+      assert.ok(!(error instanceof ForceRequired))
+      assert.equal(
+        error.message,
+        'ade worktree rm: talking has a running conversation ("Fix: worktree is dirty, use --force"); move it out first, then remove the worktree in a later step',
+      )
+      return true
+    })
+  assert.ok(existsSync(made.directory))
+  // It has the seeded .env: force.
+  await withSessions({}).remove({ directory: made.directory, force: true })
+  assert.ok(!existsSync(made.directory))
+  assert.ok(
+    readFileSync(log, "utf8")
+      .split("\n")
+      .includes(`api post /api/session/ses_talk/move --data ${JSON.stringify({ directory: join(project, "main") })}`),
   )
 })

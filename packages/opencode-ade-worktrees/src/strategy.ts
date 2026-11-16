@@ -68,8 +68,11 @@ export function strategy(o: StrategyOptions): Strategy {
         await removeWorktree(kit(), io(cwd, said), [...(force ? ["-f"] : []), directory])
       } catch (error) {
         if (!(error instanceof Failed)) throw error
+        // Force helps only when git refused (it said why, and the error has no
+        // message of its own), not when rm did: say, a running conversation
+        // there, whose title might read like git's message.
         const message = why(said, error)
-        throw /modified or untracked files|use --force|is dirty/i.test(message)
+        throw !error.message && /modified or untracked files|use --force|is dirty/i.test(message)
           ? o.forceRequired(message)
           : new Error(message)
       }
