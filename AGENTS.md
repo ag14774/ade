@@ -1,13 +1,13 @@
 # AGENTS.md
 
 For people and coding agents changing this repository, and for forks. What
-the setup does and how to use it: [README.md](README.md). What changed between
+it does and how to install it: [README.md](README.md). What changed between
 versions: [CHANGELOG.md](CHANGELOG.md).
 
 ## What is where
 
-A terminal-only agentic development environment: Zellij, Helix, OpenCode,
-Yazi, tuicr and zsh, glued together by the packages in `packages/`.
+A terminal agentic development environment: one tab per git worktree, with
+an editor, a coding agent and a reviewer wired together.
 
 - `packages/` (npm workspaces), each with its own README:
   - `ade-kit`: the `ade` command and library. Adapters for the multiplexer,
@@ -16,14 +16,13 @@ Yazi, tuicr and zsh, glued together by the packages in `packages/`.
     in `src/builtins.ts`); the worktree commands (`src/worktrees.ts`); the
     interfaces (`src/types.ts`); the public surface (`src/index.ts`).
   - `opencode-ade`, `opencode-ade-status`, `opencode-ade-worktrees`: the
-    OpenCode plugins, linked from `config/.config/opencode/plugins/`.
-- `config/`: stowed into `$HOME` (Zellij, Helix, Yazi, OpenCode, the ADE
-  config, `config/.local/bin/`).
-- `shell/*.zsh`: the zsh setup; the `wt*` functions are short names for
-  `ade worktree`.
-- `install.sh`, `install/`: the installer.
-- `tests/`: zsh and python tests; `tests/lib/zellij-sandbox.zsh` for the live
-  ones. Each package's node tests are in its `test/`.
+    OpenCode plugins, linked into `~/.config/opencode/plugins/`.
+- `starter/`: a setup to copy and own: the ADE config, the `wt*` shell
+  functions (short names for `ade worktree`), `opencode-pane`, the Zellij
+  layout. Its files explain each block for a newcomer, the one exception to
+  sparse comments.
+- `tests/`: zsh tests; `tests/lib/zellij-sandbox.zsh` for the live ones.
+  Each package's node tests are in its `test/`.
 
 ## Where changes belong
 
@@ -62,7 +61,7 @@ Keep a fork small: most changes need no edit to the packages.
 
 ```sh
 npm install      # links the workspaces; dev dependencies for the check
-npm run format   # Prettier for TypeScript, shfmt for the bash scripts
+npm run format   # Prettier for TypeScript, shfmt for the shell scripts
 npm run check    # tsc, strict, no output files
 npm test         # every test that needs no Zellij session, service or model
 ```
@@ -79,6 +78,8 @@ the user's own session or service.
 
 - Run them only through `tests/lib/zellij-sandbox.zsh`: its own Zellij
   socket folder, `HOME` and OpenCode service. Its guards refuse otherwise.
+  `SANDBOX_CONFIG`, `SANDBOX_BIN` and `SANDBOX_LAYOUT` choose the config
+  under test (default: the starter).
 - Never run a `zellij` command that could reach the user's session. Outside
   the sandbox, run anything that may ask Zellij (`ade where`,
   `ade worktree ls --json`) with
